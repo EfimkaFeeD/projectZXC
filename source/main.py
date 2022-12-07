@@ -1,8 +1,11 @@
 import pygame
+import pygame_widgets
 import os
 import json
 from random import choice
 from time import time
+from pygame_widgets.slider import Slider
+from pydub import AudioSegment
 
 
 pygame.init()
@@ -19,7 +22,7 @@ FPS = 60
 
 # главное меню и перезагрузка цикла игры
 def restart_or_menu(menu):
-    global level_name, level_music, cur, level_img, level_data, start_time, active_circles, ac_times, letter_count, difficult, screen, screen_width, screen_height, FPS, score_board
+    global level_name, level_music, menu_song, cur, level_img, level_data, start_time, active_circles, ac_times, letter_count, difficult, screen, screen_width, screen_height, FPS, score_board
     if menu:
         difficult = 'medium'
         menu_song = pygame.mixer.Sound('materials//menu_mc.mp3')
@@ -55,6 +58,7 @@ def restart_or_menu(menu):
             score_board = ScoreBoard()
             return menu_image, buttons, diff_box, boxes, score_board
         menu_image, buttons, diff_box, boxes, score_board = refactor()
+        volumeSlider = VolumeSlider()
         while not level_name:
             screen.blit(menu_image, menu_image.get_rect(center=(screen_width // 2, screen_height // 2)))
             pr_text(txt='Your songs:', n=50, cord=(screen_width // 2, 25 * (screen_height / 1080)), color=(253, 149, 253))
@@ -104,6 +108,8 @@ def restart_or_menu(menu):
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     quit()
             clock.tick(FPS)
+            pygame_widgets.update(pygame.event.get())
+            volumeSlider.change_volume()
             pygame.display.update()
         menu_song.stop()
         level_music = pygame.mixer.Sound('songs\\' + level_name + '\\' + 'song.mp3')
@@ -149,6 +155,15 @@ def pr_text(txt, cord, n=20, color=(255, 255, 255), ctr=True, frmt=False):
 
 def draw_bg():
     screen.blit(level_img, level_img.get_rect(center=(screen_width // 2, screen_height // 2)))
+
+
+class VolumeSlider:
+    def __init__(self):
+        self.volumeSlider = Slider(screen, 100, 100, 500, 125, min=0, max=100, step=5, initial=100)
+        pygame.display.update()
+
+    def change_volume(self):
+        menu_song.set_volume(self.volumeSlider.getValue() / 100)
 
 
 class Button:
