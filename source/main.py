@@ -17,8 +17,9 @@ level_name = ''
 FPS = 60
 
 
+# главное меню и перезагрузка цикла игры
 def restart_or_menu(menu):
-    global level_name, level_music, cur, level_img, level_data, start_time, active_circles, ac_times, letter_count, difficult, screen, screen_width, screen_height, FPS
+    global level_name, level_music, cur, level_img, level_data, start_time, active_circles, ac_times, letter_count, difficult, screen, screen_width, screen_height, FPS, score_board
     if menu:
         difficult = 'medium'
         menu_song = pygame.mixer.Sound('materials//menu_mc.mp3')
@@ -45,14 +46,15 @@ def restart_or_menu(menu):
             resolutions = [(1600, 900), (1920, 1080), (2560, 1440), (3840, 2160)]
             res_box = ComboBox('resolution', (250 * (screen_width / 1920), 20 * (screen_height / 1080)),
                                [(i, f'{i[0]}*{i[1]}') for i in resolutions[:resolutions.index((max_w, max_h)) + 1]])
-            res_box.objects[-1].is_choice = True
+            res_box.objects[resolutions.index((screen_width, screen_height))].is_choice = True
             frame_box = ComboBox('frame rate', (425 * (screen_width / 1920), 20 * (screen_height / 1080)),
                                  [[30, '30 FPS'], [60, '60 FPS'], [120, '120 FPS'],
                                   [144, '144 FPS'], [165, '165 FPS']])
-            frame_box.objects[1].is_choice = True
+            frame_box.objects[[30, 60, 120, 144, 165].index(FPS)].is_choice = True
             boxes = [res_box, diff_box, frame_box]
-            return menu_image, buttons, diff_box, boxes
-        menu_image, buttons, diff_box, boxes = refactor()
+            score_board = ScoreBoard()
+            return menu_image, buttons, diff_box, boxes, score_board
+        menu_image, buttons, diff_box, boxes, score_board = refactor()
         while not level_name:
             screen.blit(menu_image, menu_image.get_rect(center=(screen_width // 2, screen_height // 2)))
             pr_text(txt='Your songs:', n=50, cord=(screen_width // 2, 25 * (screen_height / 1080)), color=(253, 149, 253))
@@ -83,7 +85,7 @@ def restart_or_menu(menu):
                             if box_data[0] == 'resolution' and box_data[1] != (screen_width, screen_height):
                                 screen_width, screen_height = box_data[1]
                                 screen = pygame.display.set_mode(box_data[1])
-                                menu_image, buttons, diff_box, boxes = refactor()
+                                menu_image, buttons, diff_box, boxes, score_board = refactor()
                             if box_data[0] == 'difficulty':
                                 difficult = box_data[1]
                             if box_data[0] == 'frame rate':
@@ -130,6 +132,7 @@ def restart_or_menu(menu):
     letter_count = 0
 
 
+# вывод текста с центровкой или без, возвращает прямоугольник текста
 def pr_text(txt, cord, n=20, color=(255, 255, 255), ctr=True, frmt=False):
     n = int(n * (screen_width / 1920))
     font = pygame.font.SysFont('roboto', n)
@@ -229,16 +232,19 @@ class Circle:
         self.stade += self.speed
 
     def collision(self, x, y):
+        if self.dead_stade:
+            return
         if self.stade > self.upper_p:
             self.col_stade = 1
             if not self.dead_stade:
                 self.dead_stade = 1
+                return -1
             return
         if self.heatbox.collidepoint(x, y) and pygame.key.get_pressed()[self.key]:
             self.sound.play()
-            screen.blit(cur, cur.get_rect(center=(x, y)))
             self.col_stade = self.stade
             self.dead_stade = 1
+            return 1
 
     def blit_res(self):
         self.dead_stade += 1
@@ -319,6 +325,35 @@ class ComboBox:
         pygame.draw.rect(screen, color, self.heatbox, 5)
 
 
+class ScoreBoard:
+    def __init__(self, x=0, y=0):
+        self.x = x
+        self.y = y
+        self.max_w = 500 * (screen_width / 1920)
+        self.w = self.max_w
+        self.h = 40 * (screen_height / 1080)
+        self.image = pygame.transform.smoothscale(pygame.image.load('materials\\score_bg.jpg'),
+                                                  (self.max_w, self.h))
+        self.image.set_alpha(100)
+        self.rect = self.image.get_rect(center=(x, y))
+        self.max_price = 1
+        self.player_price = 1
+
+    def blit(self):
+        img = pygame.transform.smoothscale(self.image, (self.w, self.h))
+        screen.blit(img, img.get_rect(center=(self.x + self.w // 2, self.y + self.h // 2)))
+        ac = round(self.player_price / self.max_price * 100, 2)
+        text_x = self.x + self.w + 40 * (screen_width / 1920)
+        pr_text(txt=f'{ac}%', cord=(text_x, self.y + self.h // 2), n=30, color=(168, 162, 252))
+
+    def update_score(self, data):
+        if data[0] == 'circle':
+            self.max_price += 50
+            if data[1] == 1:
+                self.player_price += 50
+        self.w = self.max_w * (self.player_price / self.max_price)
+
+
 restart_or_menu(True)
 while True:
     draw_bg()
@@ -327,10 +362,13 @@ while True:
     if str(cur_time) in level_data and cur_time not in ac_times:
         data = level_data[str(cur_time)]
         ac_times.append(cur_time)
-        if data[0] == 'circle':
-            active_circles.append(Circle(data[1], data[2], data[3]))
+        for d in data:
+            if d[0] == 'circle':
+                active_circles.append(Circle(d[1], d[2], d[3]))
     for circle in active_circles:
-        circle.collision(x, y)
+        score = circle.collision(x, y)
+        if score:
+            score_board.update_score(['circle', score])
         if not circle.col_stade:
             circle.blit()
         else:
@@ -342,5 +380,6 @@ while True:
             level_music.stop()
             restart_or_menu(True)
     screen.blit(cur, cur.get_rect(center=(x, y)))
+    score_board.blit()
     pygame.display.update()
     clock.tick(FPS)
