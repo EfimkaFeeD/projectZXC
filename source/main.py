@@ -70,15 +70,15 @@ class Menu:
     # Создание списка кнопок
     def generate_song_button_array(self):
         width = 500 * (screen_width / 1920)
-        height = 500 * (screen_height / 1080)
+        height = (60 * (screen_height / 1080) + 30 * (screen_height / 1080)) * len(self.song_list)
         song_button_array = NewButtonArray(
             screen,
             int(screen_width // 2 - width // 2),
-            int(100 * (screen_height / 1080)),
+            int(150 * (screen_height / 1080)),
             int(width),
             int(height),
             (1, len(self.song_list)),
-            border=100,
+            border=30 * (screen_height / 1080),
             topBorder=0,
             bottomBorder=0,
             leftBorder=0,
