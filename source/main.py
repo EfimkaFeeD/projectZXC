@@ -3,7 +3,11 @@ import pygame
 import pygame_widgets
 from pygame_widgets.button import ButtonArray
 from pygame_widgets.dropdown import Dropdown
+from screeninfo import get_monitors
 
+
+# Надо для определния разрешения по неясным причинам
+get_monitors()
 
 # Предопределение основных переменных
 FPS = 144
@@ -123,7 +127,7 @@ class Menu:
         if (screen_width, screen_height) not in possible_resolutions:
             possible_resolutions.append((screen_width, screen_height))
         possible_resolutions.sort(key=lambda x: (x[0], x[1]))
-        possible_resolutions = possible_resolutions[:possible_resolutions.index((screen_width, screen_height)) + 1]
+        possible_resolutions = possible_resolutions[:possible_resolutions.index((max_w, max_h)) + 1]
         resolution_drop_menu = Dropdown(
             screen, screen_width - int(200 * (screen_width / 1920)), 0, int(200 * (screen_width / 1920)),
             int(50 * (screen_width / 1920)), name='resolution',
