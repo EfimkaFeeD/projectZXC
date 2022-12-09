@@ -1,8 +1,9 @@
 import os
 import pygame
 import pygame_widgets
-from pygame_widgets.button import ButtonArray
+from pygame_widgets.button import ButtonArray, Button
 from pygame_widgets.dropdown import Dropdown
+from pygame_widgets.widget import WidgetHandler
 from screeninfo import get_monitors
 
 
@@ -10,7 +11,7 @@ from screeninfo import get_monitors
 get_monitors()
 
 # Предопределение основных переменных
-FPS = 144
+fps = 144
 pygame.init()
 screen_width = pygame.display.Info().current_w
 screen_height = pygame.display.Info().current_h
@@ -70,6 +71,7 @@ class Menu:
         self.FPS_dropdown_menu = self.generate_fps_dropdown_menu()
         self.difficulty_dropdown_menu = self.generate_difficulty_dropdown_menu()
         self.resolution_dropdown_menu = self.generate_resolution_dropdown_menu()
+        self.confirm_button = self.generate_confirm_button()
 
     # Создание списка кнопок
     def generate_song_button_array(self):
@@ -175,8 +177,51 @@ class Menu:
         pygame_widgets.update(event)
 
     # Измение под новое разрешение экрана
-    def refactor(self):
-        pass
+    def refactor(self, resolution):
+        global screen_width, screen_height, screen
+        screen_width, screen_height = resolution
+        screen = pygame.display.set_mode(resolution)
+        WidgetHandler.removeWidget(self.buttonArray)
+        WidgetHandler.removeWidget(self.FPS_dropdown_menu)
+        WidgetHandler.removeWidget(self.difficulty_dropdown_menu)
+        WidgetHandler.removeWidget(self.resolution_dropdown_menu)
+        WidgetHandler.removeWidget(self.confirm_button)
+        self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
+        self.buttonArray = self.generate_song_button_array()
+        self.FPS_dropdown_menu = self.generate_fps_dropdown_menu()
+        self.difficulty_dropdown_menu = self.generate_difficulty_dropdown_menu()
+        self.resolution_dropdown_menu = self.generate_resolution_dropdown_menu()
+        self.confirm_button = self.generate_confirm_button()
+        self.menu_image = pygame.transform.smoothscale(self.menu_image, (screen_width, screen_height))
+
+    # создание кнопки подтверждения настроек
+    def generate_confirm_button(self):
+        confirm_button = Button(
+            screen,
+            screen_width - int(200 * (screen_width / 1920)),
+            screen_height - int(50 * (screen_width / 1920)),
+            int(200 * (screen_width / 1920)),
+            int(50 * (screen_width / 1920)),
+            text='confirm',
+            radius=25,
+            textColour=self.buttons_font_color,
+            inactiveColour=(77, 50, 145),
+            hoverColour=(54, 35, 103),
+            pressedColour=(121, 78, 230),
+            font=self.buttons_font,
+            border=30 * (screen_height / 1080),
+            onClick=self.confirm_settings
+        )
+        return confirm_button
+
+    def confirm_settings(self):
+        global fps, screen_width, screen_height
+        new_fps = self.FPS_dropdown_menu.getSelected()
+        new_resolution = self.resolution_dropdown_menu.getSelected()
+        if new_fps:
+            fps = int(new_fps)
+        if new_resolution and new_resolution != (screen_width, screen_height):
+            self.refactor(new_resolution)
 
 
 # Основной цикл игры
@@ -194,4 +239,4 @@ while running:
                 running = False
     menu.update_widgets(events)
     pygame.display.update()
-    clock.tick(FPS)
+    clock.tick(fps)
