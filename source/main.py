@@ -1,25 +1,26 @@
 import os
 import pygame
 import pygame_widgets
+import json
+from screeninfo import get_monitors
 from pygame_widgets.button import ButtonArray, Button
 from pygame_widgets.dropdown import Dropdown
 from pygame_widgets.widget import WidgetHandler
 from pygame_widgets.slider import Slider
-from screeninfo import get_monitors
-
-# from game import GameCore
+from random import choice
 
 # Необходимо для определения разрешения по неясным причинам
 get_monitors()
 
 # Предопределение основных переменных
+resolutions = [(1600, 900), (1920, 1080), (2560, 1440), (3840, 2160)]
 fps = 144
 pygame.init()
 screen_width = pygame.display.Info().current_w
 screen_height = pygame.display.Info().current_h
 max_w, max_h = screen_width, screen_height
 screen = pygame.display.set_mode((screen_width, screen_height))
-resolutions = [(1600, 900), (1920, 1080), (2560, 1440), (3840, 2160)]
+clock = pygame.time.Clock()
 
 
 # Переопределение класса из библиотеки для добавления возможности убирания заднего фона
@@ -55,6 +56,7 @@ class NewButtonArray(ButtonArray):
 # Класс главного меню
 class Menu:
     def __init__(self):
+        self.running = True
         self.difficult = 'medium'
         self.menu_song = pygame.mixer.Sound('materials//menu_mc.mp3')
         self.menu_song.play()
@@ -156,7 +158,7 @@ class Menu:
             int(15 * (screen_height / 1080)), int(200 * (screen_width / 1920)),
             int(50 * (screen_height / 1080)), name='frame rate',
             choices=['30', '60', '120', '144', '240'],
-            borderRadius=int(25 * (screen_height / 1080)) , direction='down', textHAlign='centre',
+            borderRadius=int(25 * (screen_height / 1080)), direction='down', textHAlign='centre',
             font=self.buttons_font,
             textColour=self.buttons_font_color,
             inactiveColour=(77, 50, 145),
@@ -184,11 +186,16 @@ class Menu:
         screen.blit(songs_text, songs_text_rect)
 
     # Обновление всех виджетов
-    def update_widgets(self, event):
-        pygame_widgets.update(event)
-        self.scroll_song_buttons(event)
+    def update_widgets(self, events):
+        global running
+        pygame_widgets.update(events)
+        self.scroll_song_buttons(events)
         self.menu_song.set_volume(self.volume_slider.getValue() / 100)
         self.volume_level = self.volume_slider.getValue()
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                running = False
+                self.running = False
 
     # Листание списка кнопок песен колёсиком мыши
     def scroll_song_buttons(self, events):
@@ -251,10 +258,9 @@ class Menu:
 
     # Изменение настроек
     def confirm_settings(self):
-        global fps, screen_width, screen_height
+        global fps
         new_fps = self.FPS_dropdown_menu.getSelected()
         new_resolution = self.resolution_dropdown_menu.getSelected()
-        self.FPS_dropdown_menu.reset()
         if new_fps:
             fps = int(new_fps)
         if new_resolution and new_resolution != (screen_width, screen_height):
@@ -279,7 +285,6 @@ class Menu:
             screen.blit(surface, (0, 0))
             pygame.display.update()
             clock.tick(fps)
-        self.menu_song.stop()
 
     # Создания настроек для открытого уровня
     def set_run_config(self, index):
@@ -287,34 +292,87 @@ class Menu:
         diff = self.difficulty_dropdown_menu.getSelected()
         if diff:
             self.difficult = diff
+        self.running = False
+
+    # Цикл для вывода на экран
+    def run(self):
+        while self.running:
+            self.blit()
+            self.update_widgets(pygame.event.get())
+            pygame.display.update()
+        self.close_animation()
+        self.menu_song.stop()
+
+
+# Основной класс игры
+class Game:
+    def __init__(self, level_name, difficult):
+        self.running = True
+        self.level_music = pygame.mixer.Sound('songs\\' + level_name + '\\' + 'song.mp3')
+        self.level_background = pygame.transform.smoothscale(
+            pygame.image.load('songs\\' + level_name + '\\' + 'bg.jpg'), (screen_width, screen_height))
+        with open('songs\\' + level_name + '\\' + 'level.json') as f:
+            self.level_data = json.load(f)
+        self.difficult = difficult
+        self.start_animation()
+        self.level_music.play()
+
+    # Анимация появления уровня
+    def start_animation(self):
+        surface = pygame.Surface((screen_width, screen_height))
+        surface.fill((0, 0, 0))
+        for i in range(fps, 1, -1):
+            self.blit_background()
+            surface.set_alpha(int(255 * (i / fps)))
+            screen.blit(surface, (0, 0))
+            pygame.display.update()
+            clock.tick(fps)
+
+    # Смена заднего фона на задний фон уровня
+    def blit_background(self):
+        screen.blit(self.level_background, (0, 0))
+
+    # Создание объектов
+    def update_object_list(self):
+        pass
+
+    # Расположение на уровне
+    def move_objects(self):
+        pass
+
+    # Создание нового кадра игры
+    def generate_frame(self, events):
+        self.blit_background()
+        self.update_object_list()
+        self.move_objects()
+        if self.check_exit_event(events):
+            quit()
+
+    # Выход из игры в меню
+    def check_exit_event(self, events):
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.running = False
+
+    # Цикл для вывода на экран
+    def run(self):
+        while self.running:
+            self.generate_frame(pygame.event.get())
+            pygame.display.update()
+        self.level_music.stop()
+
+
+# Класс цели в виде кружка
+class TargetCircle:
+    def __init__(self):
+        pass
 
 
 # Основной цикл игры
-menu = Menu()
-clock = pygame.time.Clock()
 running = True
 while running:
-    menu.blit()
-    events = pygame.event.get()
-    for event in events:
-        if event.type == pygame.QUIT:
-            running = False
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                running = False
-    menu.update_widgets(events)
-    pygame.display.update()
-    clock.tick(fps)
-    """
-    if menu.level_name:
-        menu.close_animation()
-        game = GameCore(menu.level_name, menu.difficult)
-        running = False
-
-running = True
-while running:
-    events = pygame.event.get()
-    game.generate_frame(events)
-    pygame.display.update()
-    clock.tick(fps)
-"""
+    menu = Menu()
+    menu.run()
+    if running:
+        game = Game(menu.level_name, menu.difficult)
+        game.run()
