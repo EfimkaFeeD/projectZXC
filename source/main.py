@@ -1,5 +1,6 @@
 import os
 import pygame
+import json
 import pygame_widgets
 from pygame_widgets.button import ButtonArray, Button
 from pygame_widgets.dropdown import Dropdown
@@ -51,8 +52,6 @@ class NewButtonArray(ButtonArray):
 
 # Класс главного меню
 class Menu:
-    global screen, screen_width, screen_height
-
     def __init__(self):
         self.difficult = 'medium'
         self.menu_song = pygame.mixer.Sound('materials//menu_mc.mp3')
@@ -62,7 +61,6 @@ class Menu:
         self.menu_image = pygame.image.load('materials//menu_bg.jpg')
         self.menu_image = pygame.transform.smoothscale(self.menu_image, (screen_width, screen_height))
         self.buttons = []
-        self.song_name = ''
         self.buttons_scroll = 0
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
         self.buttons_font_color = (255, 255, 255)
@@ -99,7 +97,7 @@ class Menu:
             colour=(255, 255, 255),
             invisible=True,
             textColours=[self.buttons_font_color for _ in range(len(texts))],
-            onClicks=[lambda x: self.get_song_name(x) for _ in range(len(texts))],
+            onClicks=[lambda x: self.set_run_config(x) for _ in range(len(texts))],
             onClickParams=[[i] for i in range(len(texts))]
         )
         return song_button_array
@@ -161,10 +159,6 @@ class Menu:
         )
         return fps_drop_menu
 
-    # Обновление названия трека
-    def get_song_name(self, index):
-        self.song_name = self.song_list[index]
-
     # Вывод текста и заднего фона
     def blit(self):
         screen.blit(self.menu_image, self.menu_image.get_rect(center=(screen_width // 2, screen_height // 2)))
@@ -187,10 +181,10 @@ class Menu:
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 WidgetHandler.removeWidget(self.buttonArray)
-                if event.button == 4:
+                if event.button == 5:
                     if self.buttons_scroll < len(self.song_list) - 1:
                         self.buttons_scroll += 1
-                elif event.button == 5:
+                elif event.button == 4:
                     if self.buttons_scroll > 0:
                         self.buttons_scroll -= 1
                 self.buttonArray = self.generate_song_button_array(text=self.song_list[self.buttons_scroll:])
@@ -246,22 +240,75 @@ class Menu:
             self.refactor(new_resolution)
 
     def generate_add_song_button(self):
-        add_button = Button(
-            screen,
-            screen_width // 2 - int(37.5 * (screen_width / 1920)),
-            screen_height - int(100 * (screen_height / 1080)),
-            int(75 * (screen_width / 1920)),
-            int(75 * (screen_height / 1080)),
-            text='+',
-            font=self.buttons_font,
-            textColour=self.buttons_font_color,
-            inactiveColour=(77, 50, 145),
-            hoverColour=(54, 35, 103),
-            pressedColour=(121, 78, 230),
-            radius=75,
-            border=30 * (screen_height / 1080)
-            )
+        button = Button(screen, screen_width // 2 - int(37.5 * (screen_width / 1920)),
+                        screen_height - int(100 * (screen_height / 1080)), int(75 * (screen_width / 1920)),
+                        int(75 * (screen_height / 1080)), text='+', font=self.buttons_font,
+                        textColour=self.buttons_font_color, inactiveColour=(77, 50, 145), hoverColour=(54, 35, 103),
+                        pressedColour=(121, 78, 230), radius=75, border=30 * (screen_height / 1080))
+        add_button = button
         return add_button
+
+    def close_animation(self):
+        surface = pygame.Surface((screen_width, screen_height))
+        surface.fill((0, 0, 0))
+        for i in range(1, fps):
+            surface.set_alpha(int(255 * (i / fps)))
+            screen.blit(surface, (0, 0))
+            pygame.display.update()
+            clock.tick(fps)
+        self.menu_song.stop()
+
+    def set_run_config(self, index):
+        self.level_name = self.song_list[index]
+        diff = self.difficulty_dropdown_menu.getSelected()
+        if diff:
+            self.difficult = diff
+
+
+class GameCore:
+    def __init__(self, level_name, difficult):
+        self.level_music = pygame.mixer.Sound('songs\\' + level_name + '\\' + 'song.mp3')
+        self.level_background = pygame.transform.smoothscale(
+            pygame.image.load('songs\\' + level_name + '\\' + 'bg.jpg'), (screen_width, screen_height))
+        with open('songs\\' + level_name + '\\' + 'level.json') as f:
+            self.level_data = json.load(f)
+        self.difficult = difficult
+        self.start_animation()
+        self.level_music.play()
+
+    def start_animation(self):
+        surface = pygame.Surface((screen_width, screen_height))
+        surface.fill((0, 0, 0))
+        for i in range(fps, 1, -1):
+            self.blit_background()
+            surface.set_alpha(int(255 * (i / fps)))
+            screen.blit(surface, (0, 0))
+            pygame.display.update()
+            clock.tick(fps)
+
+    def blit_background(self):
+        screen.blit(self.level_background, (0, 0))
+
+    def update_object_list(self):
+        pass
+
+    def move_objects(self):
+        pass
+
+    def generate_frame(self, events):
+        self.blit_background()
+        self.update_object_list()
+        self.move_objects()
+        if self.check_exit_event(events):
+            quit()
+
+    @staticmethod
+    def check_exit_event(events):
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return True
+        return False
 
 
 # Основной цикл игры
@@ -278,5 +325,16 @@ while running:
             if event.key == pygame.K_ESCAPE:
                 running = False
     menu.update_widgets(events)
+    pygame.display.update()
+    clock.tick(fps)
+    if menu.level_name:
+        menu.close_animation()
+        game = GameCore(menu.level_name, menu.difficult)
+        running = False
+
+running = True
+while running:
+    events = pygame.event.get()
+    game.generate_frame(events)
     pygame.display.update()
     clock.tick(fps)
