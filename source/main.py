@@ -59,6 +59,7 @@ class Menu:
         self.running = True
         self.difficult = 'medium'
         self.menu_song = pygame.mixer.Sound('materials//menu_mc.mp3')
+        self.exit_sound = pygame.mixer.Sound('materials//exit.mp3')
         self.menu_song.play()
         self.song_list = [arg[1] for arg in os.walk('songs')][0]
         self.level_name = ''
@@ -280,6 +281,7 @@ class Menu:
     def close_animation(self):
         surface = pygame.Surface((screen_width, screen_height))
         surface.fill((0, 0, 0))
+        self.exit_sound.play()
         for i in range(1, fps):
             surface.set_alpha(int(255 * (i / fps)))
             screen.blit(surface, (0, 0))
