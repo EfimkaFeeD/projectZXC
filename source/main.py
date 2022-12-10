@@ -7,7 +7,6 @@ from pygame_widgets.button import ButtonArray, Button
 from pygame_widgets.dropdown import Dropdown
 from pygame_widgets.widget import WidgetHandler
 from pygame_widgets.slider import Slider
-from random import choice
 
 # Необходимо для определения разрешения по неясным причинам
 get_monitors()
@@ -59,8 +58,9 @@ class Menu:
         self.running = True
         self.difficult = 'medium'
         self.menu_song = pygame.mixer.Sound('materials//menu_mc.mp3')
-        self.exit_sound = pygame.mixer.Sound('materials//exit.mp3')
+        self.return_sound = pygame.mixer.Sound('materials//return.mp3')
         self.menu_song.play()
+        self.confirm_exit_buttons = None
         self.song_list = [arg[1] for arg in os.walk('songs')][0]
         self.level_name = ''
         self.menu_image = pygame.image.load('materials//menu_bg.jpg')
@@ -181,8 +181,12 @@ class Menu:
     # Вывод текста и заднего фона
     def blit(self):
         screen.blit(self.menu_image, self.menu_image.get_rect(center=(screen_width // 2, screen_height // 2)))
+        if self.confirm_exit_buttons:
+            text = 'Exit?'
+        else:
+            text = 'Your songs:'
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
-        songs_text = font.render('Your Songs:', True, (124, 62, 249))
+        songs_text = font.render(text, True, (124, 62, 249))
         songs_text_rect = songs_text.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080)))
         screen.blit(songs_text, songs_text_rect)
 
@@ -195,11 +199,67 @@ class Menu:
         self.volume_level = self.volume_slider.getValue()
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                running = False
-                self.running = False
+                if self.confirm_exit_buttons:
+                    self.confirm_exit(False)
+                    return
+                self.confirm_exit_buttons = self.generate_confirm_exit_buttons()
+                WidgetHandler.removeWidget(self.buttonArray)
+                WidgetHandler.removeWidget(self.FPS_dropdown_menu)
+                WidgetHandler.removeWidget(self.difficulty_dropdown_menu)
+                WidgetHandler.removeWidget(self.resolution_dropdown_menu)
+                WidgetHandler.removeWidget(self.confirm_button)
+                WidgetHandler.removeWidget(self.add_song_button)
+                WidgetHandler.removeWidget(self.volume_slider)
+
+    def generate_confirm_exit_buttons(self):
+        width = 500 * (screen_width / 1920)
+        height = (60 * (screen_height / 1080) + 30 * (screen_height / 1080)) * 2
+        button_array = NewButtonArray(
+            screen,
+            int(screen_width // 2 - width // 2),
+            int(250 * (screen_height / 1080)),
+            int(width),
+            int(height),
+            (1, 2),
+            border=30 * (screen_height / 1080),
+            topBorder=0,
+            bottomBorder=0,
+            leftBorder=0,
+            rightBorder=0,
+            inactiveColours=[(77, 50, 145) for _ in range(2)],
+            hoverColours=[(54, 35, 103) for _ in range(2)],
+            pressedColours=[(121, 78, 230) for _ in range(2)],
+            radii=[int(25 * (screen_height / 1080)) for _ in range(2)],
+            fonts=[self.buttons_font for _ in range(2)],
+            texts=['Exit', 'Return'],
+            invisible=True,
+            textColours=[self.buttons_font_color for _ in range(2)],
+            onClicks=[lambda x: self.confirm_exit(x) for _ in range(2)],
+            onClickParams=[[True], [False]]
+        )
+        return button_array
+
+    def confirm_exit(self, arg):
+        global running
+        if arg:
+            self.running = False
+            running = False
+        else:
+            self.buttonArray = self.generate_song_button_array()
+            self.FPS_dropdown_menu = self.generate_fps_dropdown_menu()
+            self.difficulty_dropdown_menu = self.generate_difficulty_dropdown_menu()
+            self.resolution_dropdown_menu = self.generate_resolution_dropdown_menu()
+            self.confirm_button = self.generate_confirm_button()
+            self.add_song_button = self.generate_add_song_button()
+            self.volume_slider = self.generate_volume_slider()
+            WidgetHandler.removeWidget(self.confirm_exit_buttons)
+            self.confirm_exit_buttons = None
+            self.return_sound.play()
 
     # Листание списка кнопок песен колёсиком мыши
     def scroll_song_buttons(self, events):
+        if self.confirm_exit_buttons:
+            return
         pos = pygame.mouse.get_pos()
         if not pygame.Rect(self.buttonArray.getX(), self.buttonArray.getY(), self.buttonArray.getWidth(),
                            screen_height).collidepoint(pos):
@@ -281,7 +341,6 @@ class Menu:
     def close_animation(self):
         surface = pygame.Surface((screen_width, screen_height))
         surface.fill((0, 0, 0))
-        self.exit_sound.play()
         for i in range(1, fps):
             surface.set_alpha(int(255 * (i / fps)))
             screen.blit(surface, (0, 0))
@@ -298,12 +357,21 @@ class Menu:
 
     # Цикл для вывода на экран
     def run(self):
+        global running
         while self.running:
             self.blit()
             self.update_widgets(pygame.event.get())
             pygame.display.update()
         self.close_animation()
         self.menu_song.stop()
+        if running:
+            WidgetHandler.removeWidget(self.buttonArray)
+            WidgetHandler.removeWidget(self.FPS_dropdown_menu)
+            WidgetHandler.removeWidget(self.difficulty_dropdown_menu)
+            WidgetHandler.removeWidget(self.resolution_dropdown_menu)
+            WidgetHandler.removeWidget(self.confirm_button)
+            WidgetHandler.removeWidget(self.add_song_button)
+            WidgetHandler.removeWidget(self.volume_slider)
 
 
 # Основной класс игры
@@ -362,6 +430,17 @@ class Game:
             self.generate_frame(pygame.event.get())
             pygame.display.update()
         self.level_music.stop()
+        self.close_animation()
+
+    @staticmethod
+    def close_animation():
+        surface = pygame.Surface((screen_width, screen_height))
+        surface.fill((0, 0, 0))
+        for i in range(1, fps):
+            surface.set_alpha(int(255 * (i / fps)))
+            screen.blit(surface, (0, 0))
+            pygame.display.update()
+            clock.tick(fps)
 
 
 # Класс цели в виде кружка
