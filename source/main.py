@@ -54,9 +54,9 @@ class NewButtonArray(ButtonArray):
 
 # Класс главного меню
 class Menu:
-    def __init__(self):
+    def __init__(self, args):
         self.running = True
-        self.difficult = 'medium'
+        self.difficult = args[1]
         self.menu_song = pygame.mixer.Sound('materials//menu_mc.mp3')
         self.return_sound = pygame.mixer.Sound('materials//return.mp3')
         self.menu_song.play()
@@ -75,7 +75,7 @@ class Menu:
         self.resolution_dropdown_menu = self.generate_resolution_dropdown_menu()
         self.confirm_button = self.generate_confirm_button()
         self.add_song_button = self.generate_add_song_button()
-        self.volume_level = 100
+        self.volume_level = args[0]
         self.volume_slider = self.generate_volume_slider()
 
     # Создание списка кнопок треков
@@ -338,7 +338,8 @@ class Menu:
         return add_button
 
     # Анимация затухания меню
-    def close_animation(self):
+    @staticmethod
+    def close_animation():
         surface = pygame.Surface((screen_width, screen_height))
         surface.fill((0, 0, 0))
         for i in range(1, fps):
@@ -376,9 +377,10 @@ class Menu:
 
 # Основной класс игры
 class Game:
-    def __init__(self, level_name, difficult):
+    def __init__(self, level_name, difficult, volume):
         self.running = True
         self.level_music = pygame.mixer.Sound('songs\\' + level_name + '\\' + 'song.mp3')
+        self.level_music.set_volume(volume / 100)
         self.level_background = pygame.transform.smoothscale(
             pygame.image.load('songs\\' + level_name + '\\' + 'bg.jpg'), (screen_width, screen_height))
         with open('songs\\' + level_name + '\\' + 'level.json') as f:
@@ -449,11 +451,21 @@ class TargetCircle:
         pass
 
 
-# Основной цикл игры
 running = True
-while running:
-    menu = Menu()
-    menu.run()
-    if running:
-        game = Game(menu.level_name, menu.difficult)
-        game.run()
+
+
+# Основной цикл игры
+def main():
+    global running
+    settings_data = [100, 'medium']
+    while running:
+        menu = Menu(settings_data)
+        menu.run()
+        settings_data = menu.volume_level, menu.difficult
+        if running:
+            game = Game(menu.level_name, menu.difficult, menu.volume_level)
+            game.run()
+
+
+if __name__ == '__main__':
+    main()
