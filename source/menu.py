@@ -1,13 +1,13 @@
 import os
 import pygame
-import json
 import pygame_widgets
 from pygame_widgets.button import ButtonArray, Button
 from pygame_widgets.dropdown import Dropdown
 from pygame_widgets.widget import WidgetHandler
 from screeninfo import get_monitors
+from game import GameCore
 
-# Надо для определния разрешения по неясным причинам
+# Необходимо для определения разрешения по неясным причинам
 get_monitors()
 
 # Предопределение основных переменных
@@ -20,7 +20,7 @@ screen = pygame.display.set_mode((screen_width, screen_height))
 resolutions = [(1600, 900), (1920, 1080), (2560, 1440), (3840, 2160)]
 
 
-# Переопределение класса из библиотеки для убирания заднего фона
+# Переопределение класса из библиотеки для добавления возможности убирания заднего фона
 class NewButtonArray(ButtonArray):
     def __init__(self, win, x, y, width, height, shape, **kwargs):
         super().__init__(win, x, y, width, height, shape, **kwargs)
@@ -71,7 +71,7 @@ class Menu:
         self.confirm_button = self.generate_confirm_button()
         self.add_song_button = self.generate_add_song_button()
 
-    # Создание списка кнопок
+    # Создание списка кнопок треков
     def generate_song_button_array(self, text=None):
         texts = self.song_list if not text else text
         width = 500 * (screen_width / 1920)
@@ -102,7 +102,7 @@ class Menu:
         )
         return song_button_array
 
-    # Создание списка сложностей
+    # Создание списка кнопок сложностей
     def generate_difficulty_dropdown_menu(self):
         difficulty_drop_menu = Dropdown(
             screen, 0, 0, int(200 * (screen_width / 1920)), int(50 * (screen_height / 1080)), name='difficult',
@@ -122,7 +122,7 @@ class Menu:
         )
         return difficulty_drop_menu
 
-    # Создание списка разрешения
+    # Создание списка кнопок разрешений экрана
     def generate_resolution_dropdown_menu(self):
         possible_resolutions = resolutions.copy()
         if (screen_width, screen_height) not in possible_resolutions:
@@ -143,7 +143,7 @@ class Menu:
         )
         return resolution_drop_menu
 
-    # Создание списка FPS
+    # Создание списка кнопок FPS
     def generate_fps_dropdown_menu(self):
         fps_drop_menu = Dropdown(
             screen, int(screen_width - 200 * (screen_width / 1920) * 2 - (30 * (screen_width / 1920))),
@@ -172,7 +172,7 @@ class Menu:
         pygame_widgets.update(event)
         self.scroll_song_buttons(event)
 
-    # Промотка кнопок песен на колесико мыши
+    # Листание списка кнопок песен колёсиком мыши
     def scroll_song_buttons(self, events):
         pos = pygame.mouse.get_pos()
         if not pygame.Rect(self.buttonArray.getX(), self.buttonArray.getY(), self.buttonArray.getWidth(),
@@ -189,7 +189,7 @@ class Menu:
                         self.buttons_scroll -= 1
                 self.buttonArray = self.generate_song_button_array(text=self.song_list[self.buttons_scroll:])
 
-    # Измение под новое разрешение экрана
+    # Изменение под новое разрешение экрана
     def refactor(self, resolution):
         global screen_width, screen_height, screen
         screen_width, screen_height = resolution
@@ -209,7 +209,7 @@ class Menu:
         self.menu_image = pygame.transform.smoothscale(self.menu_image, (screen_width, screen_height))
         self.add_song_button = self.generate_add_song_button()
 
-    # создание кнопки подтверждения настроек
+    # Создание кнопки подтверждения настроек
     def generate_confirm_button(self):
         confirm_button = Button(
             screen,
@@ -229,6 +229,7 @@ class Menu:
         )
         return confirm_button
 
+    # Изменение настроек
     def confirm_settings(self):
         global fps, screen_width, screen_height
         new_fps = self.FPS_dropdown_menu.getSelected()
@@ -239,6 +240,7 @@ class Menu:
         if new_resolution and new_resolution != (screen_width, screen_height):
             self.refactor(new_resolution)
 
+    # Кнопка для открытия редактора нового уровня
     def generate_add_song_button(self):
         button = Button(screen, screen_width // 2 - int(37.5 * (screen_width / 1920)),
                         screen_height - int(100 * (screen_height / 1080)), int(75 * (screen_width / 1920)),
@@ -248,6 +250,7 @@ class Menu:
         add_button = button
         return add_button
 
+    # Анимация затухания меню
     def close_animation(self):
         surface = pygame.Surface((screen_width, screen_height))
         surface.fill((0, 0, 0))
@@ -258,57 +261,12 @@ class Menu:
             clock.tick(fps)
         self.menu_song.stop()
 
+    # Создания настроек для открытого уровня
     def set_run_config(self, index):
         self.level_name = self.song_list[index]
         diff = self.difficulty_dropdown_menu.getSelected()
         if diff:
             self.difficult = diff
-
-
-class GameCore:
-    def __init__(self, level_name, difficult):
-        self.level_music = pygame.mixer.Sound('songs\\' + level_name + '\\' + 'song.mp3')
-        self.level_background = pygame.transform.smoothscale(
-            pygame.image.load('songs\\' + level_name + '\\' + 'bg.jpg'), (screen_width, screen_height))
-        with open('songs\\' + level_name + '\\' + 'level.json') as f:
-            self.level_data = json.load(f)
-        self.difficult = difficult
-        self.start_animation()
-        self.level_music.play()
-
-    def start_animation(self):
-        surface = pygame.Surface((screen_width, screen_height))
-        surface.fill((0, 0, 0))
-        for i in range(fps, 1, -1):
-            self.blit_background()
-            surface.set_alpha(int(255 * (i / fps)))
-            screen.blit(surface, (0, 0))
-            pygame.display.update()
-            clock.tick(fps)
-
-    def blit_background(self):
-        screen.blit(self.level_background, (0, 0))
-
-    def update_object_list(self):
-        pass
-
-    def move_objects(self):
-        pass
-
-    def generate_frame(self, events):
-        self.blit_background()
-        self.update_object_list()
-        self.move_objects()
-        if self.check_exit_event(events):
-            quit()
-
-    @staticmethod
-    def check_exit_event(events):
-        for event in events:
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    return True
-        return False
 
 
 # Основной цикл игры
