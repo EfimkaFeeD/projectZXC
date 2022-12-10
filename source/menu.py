@@ -4,8 +4,10 @@ import pygame_widgets
 from pygame_widgets.button import ButtonArray, Button
 from pygame_widgets.dropdown import Dropdown
 from pygame_widgets.widget import WidgetHandler
+from pygame_widgets.slider import Slider
 from screeninfo import get_monitors
-from game import GameCore
+
+# from game import GameCore
 
 # Необходимо для определения разрешения по неясным причинам
 get_monitors()
@@ -70,6 +72,8 @@ class Menu:
         self.resolution_dropdown_menu = self.generate_resolution_dropdown_menu()
         self.confirm_button = self.generate_confirm_button()
         self.add_song_button = self.generate_add_song_button()
+        self.volume_level = 100
+        self.volume_slider = self.generate_volume_slider()
 
     # Создание списка кнопок треков
     def generate_song_button_array(self, text=None):
@@ -91,7 +95,7 @@ class Menu:
             inactiveColours=[(77, 50, 145) for _ in range(len(texts))],
             hoverColours=[(54, 35, 103) for _ in range(len(texts))],
             pressedColours=[(121, 78, 230) for _ in range(len(texts))],
-            radii=[25 for _ in range(len(self.song_list))],
+            radii=[int(25 * (screen_height / 1080)) for _ in range(len(self.song_list))],
             fonts=[self.buttons_font for _ in range(len(texts))],
             texts=[t if len(t) < 30 else t[:31] for t in texts],
             colour=(255, 255, 255),
@@ -105,7 +109,8 @@ class Menu:
     # Создание списка кнопок сложностей
     def generate_difficulty_dropdown_menu(self):
         difficulty_drop_menu = Dropdown(
-            screen, 0, 0, int(200 * (screen_width / 1920)), int(50 * (screen_height / 1080)), name='difficult',
+            screen, int(25 * (screen_width / 1920)), int(15 * (screen_height / 1080)),
+            int(200 * (screen_width / 1920)), int(50 * (screen_height / 1080)), name='difficult',
             choices=[
                 'normal',
                 'medium',
@@ -113,7 +118,7 @@ class Menu:
                 'insane',
                 'psycho'
             ],
-            borderRadius=25, direction='down', textHAlign='centre',
+            borderRadius=int(25 * (screen_height / 1080)), direction='down', textHAlign='centre',
             font=self.buttons_font,
             inactiveColour=(77, 50, 145),
             hoverColour=(54, 35, 103),
@@ -130,11 +135,12 @@ class Menu:
         possible_resolutions.sort(key=lambda x: (x[0], x[1]))
         possible_resolutions = possible_resolutions[:possible_resolutions.index((max_w, max_h)) + 1]
         resolution_drop_menu = Dropdown(
-            screen, screen_width - int(200 * (screen_width / 1920)), 0, int(200 * (screen_width / 1920)),
+            screen, screen_width - int(225 * (screen_width / 1920)), int(15 * (screen_height / 1080)),
+            int(200 * (screen_width / 1920)),
             int(50 * (screen_height / 1080)), name='resolution',
             values=possible_resolutions,
             choices=[f'{resolution[0]}*{resolution[1]}' for resolution in possible_resolutions],
-            borderRadius=25, direction='down', textHAlign='centre',
+            borderRadius=int(25 * (screen_height / 1080)), direction='down', textHAlign='centre',
             font=self.buttons_font,
             inactiveColour=(77, 50, 145),
             textColour=self.buttons_font_color,
@@ -146,11 +152,11 @@ class Menu:
     # Создание списка кнопок FPS
     def generate_fps_dropdown_menu(self):
         fps_drop_menu = Dropdown(
-            screen, int(screen_width - 200 * (screen_width / 1920) * 2 - (30 * (screen_width / 1920))),
-            0, int(200 * (screen_width / 1920)),
+            screen, int(screen_width - 225 * (screen_width / 1920) * 2 - (30 * (screen_width / 1920))),
+            int(15 * (screen_height / 1080)), int(200 * (screen_width / 1920)),
             int(50 * (screen_height / 1080)), name='frame rate',
             choices=['30', '60', '120', '144', '240'],
-            borderRadius=25, direction='down', textHAlign='centre',
+            borderRadius=int(25 * (screen_height / 1080)) , direction='down', textHAlign='centre',
             font=self.buttons_font,
             textColour=self.buttons_font_color,
             inactiveColour=(77, 50, 145),
@@ -158,6 +164,16 @@ class Menu:
             pressedColour=(121, 78, 230),
         )
         return fps_drop_menu
+
+    # Создание ползунка громкости трека меню
+    def generate_volume_slider(self):
+        volume_slider = Slider(screen, int(50 * (screen_width / 1920)),
+                               int(screen_height - 75 * (screen_height / 1080)),
+                               int(250 * (screen_width / 1920)), int(50 * (screen_height / 1080)),
+                               min=5, max=100, step=5, initial=self.volume_level,
+                               colour=(77, 50, 145), handleColour=(121, 78, 230))
+        pygame.display.update()
+        return volume_slider
 
     # Вывод текста и заднего фона
     def blit(self):
@@ -171,6 +187,8 @@ class Menu:
     def update_widgets(self, event):
         pygame_widgets.update(event)
         self.scroll_song_buttons(event)
+        self.menu_song.set_volume(self.volume_slider.getValue() / 100)
+        self.volume_level = self.volume_slider.getValue()
 
     # Листание списка кнопок песен колёсиком мыши
     def scroll_song_buttons(self, events):
@@ -200,6 +218,7 @@ class Menu:
         WidgetHandler.removeWidget(self.resolution_dropdown_menu)
         WidgetHandler.removeWidget(self.confirm_button)
         WidgetHandler.removeWidget(self.add_song_button)
+        WidgetHandler.removeWidget(self.volume_slider)
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
         self.buttonArray = self.generate_song_button_array()
         self.FPS_dropdown_menu = self.generate_fps_dropdown_menu()
@@ -208,17 +227,18 @@ class Menu:
         self.confirm_button = self.generate_confirm_button()
         self.menu_image = pygame.transform.smoothscale(self.menu_image, (screen_width, screen_height))
         self.add_song_button = self.generate_add_song_button()
+        self.volume_slider = self.generate_volume_slider()
 
     # Создание кнопки подтверждения настроек
     def generate_confirm_button(self):
         confirm_button = Button(
             screen,
-            screen_width - int(200 * (screen_width / 1920)),
-            screen_height - int(50 * (screen_height / 1080)),
+            screen_width - int(225 * (screen_width / 1920)),
+            screen_height - int(75 * (screen_height / 1080)),
             int(200 * (screen_width / 1920)),
             int(50 * (screen_height / 1080)),
             text='confirm',
-            radius=25,
+            radius=int(25 * (screen_height / 1080)),
             textColour=self.buttons_font_color,
             inactiveColour=(77, 50, 145),
             hoverColour=(54, 35, 103),
@@ -243,7 +263,7 @@ class Menu:
     # Кнопка для открытия редактора нового уровня
     def generate_add_song_button(self):
         button = Button(screen, screen_width // 2 - int(37.5 * (screen_width / 1920)),
-                        screen_height - int(100 * (screen_height / 1080)), int(75 * (screen_width / 1920)),
+                        screen_height - int(87.5 * (screen_height / 1080)), int(75 * (screen_width / 1920)),
                         int(75 * (screen_height / 1080)), text='+', font=self.buttons_font,
                         textColour=self.buttons_font_color, inactiveColour=(77, 50, 145), hoverColour=(54, 35, 103),
                         pressedColour=(121, 78, 230), radius=75, border=30 * (screen_height / 1080))
@@ -285,6 +305,7 @@ while running:
     menu.update_widgets(events)
     pygame.display.update()
     clock.tick(fps)
+    """
     if menu.level_name:
         menu.close_animation()
         game = GameCore(menu.level_name, menu.difficult)
@@ -296,3 +317,4 @@ while running:
     game.generate_frame(events)
     pygame.display.update()
     clock.tick(fps)
+"""
