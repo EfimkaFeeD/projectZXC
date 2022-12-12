@@ -88,7 +88,10 @@ class Menu:
         self.confirm_button = self.generate_confirm_button()
         self.add_song_button = self.generate_add_song_button()
         self.volume_level = args[0]
+        if args[2]:
+            self.menu_song.set_volume(0)
         self.volume_slider = self.generate_volume_slider()
+        self.mute_button = self.generate_mute_button()
         self.start_animation()
 
     # Создание списка кнопок треков
@@ -191,6 +194,38 @@ class Menu:
         pygame.display.update()
         return volume_slider
 
+    # Переключение состояния музыки
+    def toggle_mute(self):
+        if self.menu_song.get_volume() != 0:
+            self.menu_song.set_volume(0)
+            WidgetHandler.removeWidget(self.mute_button)
+            self.mute_button = self.generate_mute_button()
+        else:
+            self.menu_song.set_volume(self.volume_level)
+            WidgetHandler.removeWidget(self.mute_button)
+            self.mute_button = self.generate_mute_button()
+
+    # Создание кнопки переключения состояния музыки
+    def generate_mute_button(self):
+        color = (255, 0, 0) if self.menu_song.get_volume() == 0 else self.buttons_font_color
+        mute_button = Button(
+            screen,
+            int(350 * (screen_width / 1920)),
+            screen_height - int(75 * (screen_height / 1080)),
+            int(150 * (screen_width / 1920)),
+            int(50 * (screen_height / 1080)),
+            text='mute',
+            radius=int(25 * (screen_height / 1080)),
+            textColour=color,
+            inactiveColour=(77, 50, 145),
+            hoverColour=(54, 35, 103),
+            pressedColour=(121, 78, 230),
+            font=self.buttons_font,
+            border=30 * (screen_height / 1080),
+            onClick=lambda: self.toggle_mute()
+        )
+        return mute_button
+
     # Вывод текста и заднего фона
     def blit(self):
         screen.blit(self.menu_image, self.menu_image.get_rect(center=(screen_width // 2, screen_height // 2)))
@@ -208,8 +243,9 @@ class Menu:
         global running
         pygame_widgets.update(events)
         self.scroll_song_buttons(events)
-        self.menu_song.set_volume(self.volume_slider.getValue() / 100)
-        self.volume_level = self.volume_slider.getValue()
+        if self.menu_song.get_volume() != 0:
+            self.menu_song.set_volume(self.volume_slider.getValue() / 100)
+            self.volume_level = self.volume_slider.getValue()
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 if self.confirm_exit_buttons:
@@ -223,8 +259,9 @@ class Menu:
                 WidgetHandler.removeWidget(self.confirm_button)
                 WidgetHandler.removeWidget(self.add_song_button)
                 WidgetHandler.removeWidget(self.volume_slider)
+                WidgetHandler.removeWidget(self.mute_button)
 
-    # создание кнопок для подтверждения выхода из игры
+    # Создание диалога подтверждения выхода из игры
     def generate_confirm_exit_buttons(self):
         width = 500 * (screen_width / 1920)
         height = (60 * (screen_height / 1080) + 30 * (screen_height / 1080)) * 2
@@ -253,7 +290,7 @@ class Menu:
         )
         return button_array
 
-    # подтверждение выхода из игры
+    # Диалог подтверждения выхода из игры
     def confirm_exit(self, arg):
         global running
         if arg:
@@ -267,6 +304,7 @@ class Menu:
             self.confirm_button = self.generate_confirm_button()
             self.add_song_button = self.generate_add_song_button()
             self.volume_slider = self.generate_volume_slider()
+            self.mute_button = self.generate_mute_button()
             WidgetHandler.removeWidget(self.confirm_exit_buttons)
             self.confirm_exit_buttons = None
             self.return_sound.play()
@@ -302,6 +340,7 @@ class Menu:
         WidgetHandler.removeWidget(self.confirm_button)
         WidgetHandler.removeWidget(self.add_song_button)
         WidgetHandler.removeWidget(self.volume_slider)
+        WidgetHandler.removeWidget(self.mute_button)
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
         self.buttonArray = self.generate_song_button_array()
         self.FPS_dropdown_menu = self.generate_fps_dropdown_menu()
@@ -311,6 +350,7 @@ class Menu:
         self.menu_image = pygame.transform.smoothscale(self.menu_image, (screen_width, screen_height))
         self.add_song_button = self.generate_add_song_button()
         self.volume_slider = self.generate_volume_slider()
+        self.mute_button = self.generate_mute_button()
 
     # Создание кнопки подтверждения настроек
     def generate_confirm_button(self):
@@ -378,8 +418,9 @@ class Menu:
             WidgetHandler.removeWidget(self.confirm_button)
             WidgetHandler.removeWidget(self.add_song_button)
             WidgetHandler.removeWidget(self.volume_slider)
+            WidgetHandler.removeWidget(self.mute_button)
 
-    # анимация проявления экрана
+    # Анимация перехода на уровень
     def start_animation(self):
         surface = pygame.Surface((screen_width, screen_height))
         surface.fill((0, 0, 0))
@@ -471,6 +512,7 @@ class Game:
     def score(self, object_type, succes):
         pass
 
+    # Создания целей по уровню сложности
     def generate_key(self):
         if self.difficult == 'normal':
             return pygame.K_c
@@ -513,7 +555,7 @@ class TargetCircle:
         self.suc_img = pygame.transform.smoothscale(pygame.image.load('materials\\circ_suc.png'), (size, size))
         self.hit_sound = pygame.mixer.Sound('materials\\circle_click.mp3')
 
-    # движение кружка
+    # Движение кружка
     def move(self):
         if self.death:
             self.death += 1
@@ -524,14 +566,14 @@ class TargetCircle:
             self.death = 1
             self.hit_frame = -1
 
-    # обновление всех параметров
+    # Обновление всех параметров
     def frame_update(self, events):
         self.move()
         self.blit()
         self.collision(events)
         return self.get_data()
 
-    # отрисовка кружка либо результата попадания
+    # Реакция на результат попадания
     def blit(self):
         if self.death:
             if self.hit_frame >= self.start_successful_frame:
@@ -544,7 +586,7 @@ class TargetCircle:
         screen.blit(inline_blit_img, inline_blit_img.get_rect(center=(self.x, self.y)))
         screen.blit(self.text, self.text.get_rect(center=(self.x, self.y)))
 
-    # обработка попадания, кнопка и позиция курсора
+    # Обработка попадания
     def collision(self, events):
         if self.death:
             return
@@ -555,7 +597,7 @@ class TargetCircle:
                     self.hit_frame = self.frame
                     self.death = 1
 
-    # возвращает состояние кружка, был ли нажат, на каком кадрк был нажат, сколько кадров показывается результат
+    # Возврат состояния
     def get_data(self):
         if self.death:
             return [True, self.hit_frame >= self.start_successful_frame, self.death > 45 * (fps / 60)]
@@ -569,11 +611,11 @@ running = True
 # Основной цикл игры
 def main():
     global running
-    settings_data = [100, 'medium']
+    settings_data = [100, 'medium', False]
     while running:
         menu = Menu(settings_data)
         menu.run()
-        settings_data = menu.volume_level, menu.difficult
+        settings_data = menu.volume_level, menu.difficult, menu.menu_song.get_volume() == 0
         if running:
             game = Game(menu.level_name, menu.difficult, menu.volume_level)
             game.run()
