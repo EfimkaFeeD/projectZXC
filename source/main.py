@@ -489,7 +489,7 @@ class TargetCircle:
         self.key = key
         self.start_frame = frame
         self.text_key = pygame.key.name(key)
-        self.start_successful_frame = (self.max_radius / self.speed) * 0.85
+        self.start_successful_frame = (self.max_radius / self.speed) * 0.75
         self.frame = 0
         self.radius = 0
         self.death = 0
