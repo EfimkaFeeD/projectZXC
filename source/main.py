@@ -7,13 +7,14 @@ from pygame_widgets.button import ButtonArray, Button
 from pygame_widgets.dropdown import Dropdown
 from pygame_widgets.widget import WidgetHandler
 from pygame_widgets.slider import Slider
+from random import choice
 
 # Необходимо для определения разрешения по неясным причинам
 get_monitors()
 
 # Предопределение основных переменных
 resolutions = [(1600, 900), (1920, 1080), (2560, 1440), (3840, 2160)]
-fps = 144
+fps = 60
 pygame.init()
 screen_width = pygame.display.Info().current_w
 screen_height = pygame.display.Info().current_h
@@ -386,6 +387,9 @@ class Game:
         with open('songs\\' + level_name + '\\' + 'level.json') as f:
             self.level_data = json.load(f)
         self.difficult = difficult
+        self.circle_key_step = 0
+        self.frame = 0
+        self.objects = self.create_object_list()
         self.start_animation()
         self.level_music.play()
 
@@ -405,20 +409,33 @@ class Game:
         screen.blit(self.level_background, (0, 0))
 
     # Создание объектов
-    def update_object_list(self):
-        pass
+    def create_object_list(self):
+        objects = []
+        for frame, items in self.level_data.items():
+            for item_data in items:
+                if item_data[0] == 'circle':
+                    objects.append(TargetCircle(x=item_data[1], y=item_data[2], speed=item_data[3], frame=int(frame),
+                                                radius=item_data[4], key=self.generate_key()))
+        return objects
 
     # Расположение на уровне
-    def move_objects(self):
-        pass
+    def object_events(self, events):
+        for object in self.objects:
+            if object.start_frame > self.frame:
+                return
+            data = object.frame_update(events)
+            if data[0]:
+                self.score(type(object), data[1])
+                if data[2]:
+                    del self.objects[self.objects.index(object)]
 
     # Создание нового кадра игры
     def generate_frame(self, events):
         self.blit_background()
-        self.update_object_list()
-        self.move_objects()
+        self.object_events(events)
         if self.check_exit_event(events):
             quit()
+        self.frame += 1
 
     # Выход из игры в меню
     def check_exit_event(self, events):
@@ -431,8 +448,12 @@ class Game:
         while self.running:
             self.generate_frame(pygame.event.get())
             pygame.display.update()
+            clock.tick(fps)
         self.level_music.stop()
         self.close_animation()
+
+    def score(self, object_type, succes):
+        pass
 
     @staticmethod
     def close_animation():
@@ -444,11 +465,91 @@ class Game:
             pygame.display.update()
             clock.tick(fps)
 
+    def generate_key(self):
+        if self.difficult == 'normal':
+            return pygame.K_c
+        elif self.difficult == 'medium':
+            return [pygame.K_x, pygame.K_c][self.circle_key_step % 2]
+        elif self.difficult == 'hard':
+            return [pygame.K_z, pygame.K_x, pygame.K_c][self.circle_key_step % 3]
+        elif self.difficult == 'insane':
+            return choice([pygame.K_x, pygame.K_c])
+        elif self.difficult == 'psycho':
+            return choice([pygame.K_z, pygame.K_x, pygame.K_c])
+        self.circle_key_step += 1
+
 
 # Класс цели в виде кружка
 class TargetCircle:
-    def __init__(self):
-        pass
+    def __init__(self, x, y, radius, speed, frame, key):
+        self.x = int(x * (screen_width / 1920))
+        self.y = int(y * (screen_height / 1080))
+        self.max_radius = int(radius * (screen_width / 1920))
+        self.speed = self.max_radius / (fps * speed)
+        self.key = key
+        self.start_frame = frame
+        self.text_key = pygame.key.name(key)
+        self.start_successful_frame = (self.max_radius / self.speed) * 0.85
+        self.frame = 0
+        self.radius = 0
+        self.death = 0
+        self.hit_frame = None
+        self.hitbox = pygame.Rect(self.x - self.max_radius // 2, self.y - self.max_radius // 2, self.max_radius,
+                                  self.max_radius)
+        self.outline_image = pygame.transform.smoothscale(pygame.image.load('materials//circle_out.png'),
+                                                          (self.max_radius + 10 * (screen_width / 1920),
+                                                           self.max_radius + 10 * (screen_width / 1920)))
+        self.inline_image = pygame.image.load('materials//circle_in.png')
+        self.font = pygame.font.Font('materials\\Press Start 2P.ttf', self.max_radius // 2)
+        self.text = self.font.render(self.text_key, True, (255, 255, 255))
+        size = self.max_radius // 2
+        self.fail_img = pygame.transform.smoothscale(pygame.image.load('materials\\circ_fail.png'), (size, size))
+        self.suc_img = pygame.transform.smoothscale(pygame.image.load('materials\\circ_suc.png'), (size, size))
+        self.hit_sound = pygame.mixer.Sound('materials\\circle_click.mp3')
+
+    def move(self):
+        if self.death:
+            self.death += 1
+            return
+        self.radius += self.speed
+        self.frame += 1
+        if self.radius > self.max_radius:
+            self.death = 1
+            self.hit_frame = -1
+
+    def frame_update(self, events):
+        self.move()
+        self.blit()
+        self.collision(events)
+        return self.get_data()
+
+    def blit(self):
+        if self.death:
+            if self.hit_frame >= self.start_successful_frame:
+                screen.blit(self.suc_img, self.suc_img.get_rect(center=(self.x, self.y)))
+            else:
+                screen.blit(self.fail_img, self.fail_img.get_rect(center=(self.x, self.y)))
+            return
+        screen.blit(self.outline_image, self.outline_image.get_rect(center=(self.x, self.y)))
+        inline_blit_img = pygame.transform.smoothscale(self.inline_image, (self.radius, self.radius))
+        screen.blit(inline_blit_img, inline_blit_img.get_rect(center=(self.x, self.y)))
+        screen.blit(self.text, self.text.get_rect(center=(self.x, self.y)))
+
+    def collision(self, events):
+        if self.death:
+            return
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == self.key:
+                if self.hitbox.collidepoint(pygame.mouse.get_pos()):
+                    self.hit_sound.play()
+                    self.hit_frame = self.frame
+                    self.death = 1
+
+    def get_data(self):
+        if self.death:
+            return [True, self.hit_frame >= self.start_successful_frame, self.death > 45 * (fps / 60)]
+        else:
+            return [False]
 
 
 running = True
