@@ -53,6 +53,17 @@ class NewButtonArray(ButtonArray):
                 button.draw()
 
 
+# Анимация затухания
+def close_animation():
+    surface = pygame.Surface((screen_width, screen_height))
+    surface.fill((0, 0, 0))
+    for i in range(1, fps):
+        surface.set_alpha(int(255 * (i / fps)))
+        screen.blit(surface, (0, 0))
+        pygame.display.update()
+        clock.tick(fps)
+
+
 # Класс главного меню
 class Menu:
     def __init__(self, args):
@@ -78,6 +89,7 @@ class Menu:
         self.add_song_button = self.generate_add_song_button()
         self.volume_level = args[0]
         self.volume_slider = self.generate_volume_slider()
+        self.start_animation()
 
     # Создание списка кнопок треков
     def generate_song_button_array(self, text=None):
@@ -212,6 +224,7 @@ class Menu:
                 WidgetHandler.removeWidget(self.add_song_button)
                 WidgetHandler.removeWidget(self.volume_slider)
 
+    # создание кнопок для подтверждения выхода из игры
     def generate_confirm_exit_buttons(self):
         width = 500 * (screen_width / 1920)
         height = (60 * (screen_height / 1080) + 30 * (screen_height / 1080)) * 2
@@ -240,6 +253,7 @@ class Menu:
         )
         return button_array
 
+    # подтверждение выхода из игры
     def confirm_exit(self, arg):
         global running
         if arg:
@@ -338,17 +352,6 @@ class Menu:
         add_button = button
         return add_button
 
-    # Анимация затухания меню
-    @staticmethod
-    def close_animation():
-        surface = pygame.Surface((screen_width, screen_height))
-        surface.fill((0, 0, 0))
-        for i in range(1, fps):
-            surface.set_alpha(int(255 * (i / fps)))
-            screen.blit(surface, (0, 0))
-            pygame.display.update()
-            clock.tick(fps)
-
     # Создания настроек для открытого уровня
     def set_run_config(self, index):
         self.level_name = self.song_list[index]
@@ -364,7 +367,7 @@ class Menu:
             self.blit()
             self.update_widgets(pygame.event.get())
             pygame.display.update()
-        self.close_animation()
+        close_animation()
         self.menu_song.stop()
         if running:
             WidgetHandler.removeWidget(self.buttonArray)
@@ -374,6 +377,18 @@ class Menu:
             WidgetHandler.removeWidget(self.confirm_button)
             WidgetHandler.removeWidget(self.add_song_button)
             WidgetHandler.removeWidget(self.volume_slider)
+
+    # анимация проявления экрана
+    def start_animation(self):
+        surface = pygame.Surface((screen_width, screen_height))
+        surface.fill((0, 0, 0))
+        for i in range(fps, 1, -1):
+            self.blit()
+            self.update_widgets(pygame.event.get())
+            surface.set_alpha(int(255 * (i / fps)))
+            screen.blit(surface, (0, 0))
+            pygame.display.update()
+            clock.tick(fps)
 
 
 # Основной класс игры
@@ -450,20 +465,10 @@ class Game:
             pygame.display.update()
             clock.tick(fps)
         self.level_music.stop()
-        self.close_animation()
+        close_animation()
 
     def score(self, object_type, succes):
         pass
-
-    @staticmethod
-    def close_animation():
-        surface = pygame.Surface((screen_width, screen_height))
-        surface.fill((0, 0, 0))
-        for i in range(1, fps):
-            surface.set_alpha(int(255 * (i / fps)))
-            screen.blit(surface, (0, 0))
-            pygame.display.update()
-            clock.tick(fps)
 
     def generate_key(self):
         if self.difficult == 'normal':
@@ -507,6 +512,7 @@ class TargetCircle:
         self.suc_img = pygame.transform.smoothscale(pygame.image.load('materials\\circ_suc.png'), (size, size))
         self.hit_sound = pygame.mixer.Sound('materials\\circle_click.mp3')
 
+    # движение кружка
     def move(self):
         if self.death:
             self.death += 1
@@ -517,12 +523,14 @@ class TargetCircle:
             self.death = 1
             self.hit_frame = -1
 
+    # обновление всех параметров
     def frame_update(self, events):
         self.move()
         self.blit()
         self.collision(events)
         return self.get_data()
 
+    # отрисовка кружка либо результата попадания
     def blit(self):
         if self.death:
             if self.hit_frame >= self.start_successful_frame:
@@ -535,6 +543,7 @@ class TargetCircle:
         screen.blit(inline_blit_img, inline_blit_img.get_rect(center=(self.x, self.y)))
         screen.blit(self.text, self.text.get_rect(center=(self.x, self.y)))
 
+    # обработка попадания, кнопка и позиция курсора
     def collision(self, events):
         if self.death:
             return
@@ -545,6 +554,7 @@ class TargetCircle:
                     self.hit_frame = self.frame
                     self.death = 1
 
+    # возвращает состояние кружка, был ли нажат, на каком кадрк был нажат, сколько кадров показывается результат
     def get_data(self):
         if self.death:
             return [True, self.hit_frame >= self.start_successful_frame, self.death > 45 * (fps / 60)]
