@@ -367,6 +367,7 @@ class Menu:
             self.blit()
             self.update_widgets(pygame.event.get())
             pygame.display.update()
+        self.confirm_settings()
         close_animation()
         self.menu_song.stop()
         if running:
