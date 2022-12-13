@@ -444,7 +444,7 @@ class Game:
         with open('songs\\' + level_name + '\\' + 'level.json') as f:
             self.level_data = json.load(f)
         self.difficult = difficult
-        self.circle_key_step = 0
+        self.circle_key_step = -1
         self.frame = 0
         self.objects = self.create_object_list()
         self.start_animation()
@@ -477,14 +477,14 @@ class Game:
 
     # Расположение на уровне
     def object_events(self, events):
-        for object in self.objects:
-            if object.start_frame > self.frame:
+        for obj in self.objects:
+            if obj.start_frame > self.frame:
                 return
-            data = object.frame_update(events)
+            data = obj.frame_update(events)
             if data[0]:
-                self.score(type(object), data[1])
+                self.score(type(obj), data[1])
                 if data[2]:
-                    del self.objects[self.objects.index(object)]
+                    del self.objects[self.objects.index(obj)]
 
     # Создание нового кадра игры
     def generate_frame(self, events):
@@ -514,6 +514,7 @@ class Game:
 
     # Создания целей по уровню сложности
     def generate_key(self):
+        self.circle_key_step += 1
         if self.difficult == 'normal':
             return pygame.K_c
         elif self.difficult == 'medium':
@@ -524,7 +525,6 @@ class Game:
             return choice([pygame.K_x, pygame.K_c])
         elif self.difficult == 'psycho':
             return choice([pygame.K_z, pygame.K_x, pygame.K_c])
-        self.circle_key_step += 1
 
 
 # Класс цели в виде кружка
@@ -611,7 +611,7 @@ running = True
 # Основной цикл игры
 def main():
     global running
-    settings_data = [100, 'medium', False]
+    settings_data = [100, 'normal', False]
     while running:
         menu = Menu(settings_data)
         menu.run()
