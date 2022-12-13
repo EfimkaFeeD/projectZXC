@@ -533,7 +533,7 @@ class TargetCircle:
         self.max_radius = int(radius * (screen_width / 1920))
         self.speed = self.max_radius / (fps * speed)
         self.key = key
-        self.start_frame = frame
+        self.start_frame = frame * (fps / 60)
         self.text_key = pygame.key.name(key)
         self.start_successful_frame = (self.max_radius / self.speed) * 0.75
         self.frame = 0
