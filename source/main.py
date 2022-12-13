@@ -468,11 +468,9 @@ class Game:
     # Создание объектов
     def create_object_list(self):
         objects = []
-        for frame, items in self.level_data.items():
-            for item_data in items:
-                if item_data[0] == 'circle':
-                    objects.append(TargetCircle(x=item_data[1], y=item_data[2], speed=item_data[3], frame=int(frame),
-                                                radius=item_data[4], key=self.generate_key()))
+        for data in self.level_data["circles"]:
+            objects.append(TargetCircle(frame=data['frame'], x=data["x"], y=data["y"], speed=data["speed"],
+                                        radius=data["radius"], key=self.generate_key()))
         return objects
 
     # Расположение на уровне
