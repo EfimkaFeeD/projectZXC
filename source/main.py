@@ -2,6 +2,7 @@ import os
 import pygame
 import pygame_widgets
 import json
+from tkinter import filedialog
 from screeninfo import get_monitors
 from pygame_widgets.button import ButtonArray, Button
 from pygame_widgets.dropdown import Dropdown
@@ -78,6 +79,7 @@ class Menu:
         self.menu_image = pygame.image.load('materials//menu_bg.jpg')
         self.menu_image = pygame.transform.smoothscale(self.menu_image, (screen_width, screen_height))
         self.buttons = []
+        self.script = ''
         self.buttons_scroll = 0
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
         self.buttons_font_color = (255, 255, 255)
@@ -388,9 +390,14 @@ class Menu:
                         screen_height - int(87.5 * (screen_height / 1080)), int(75 * (screen_width / 1920)),
                         int(75 * (screen_height / 1080)), text='+', font=self.buttons_font,
                         textColour=self.buttons_font_color, inactiveColour=(77, 50, 145), hoverColour=(54, 35, 103),
-                        pressedColour=(121, 78, 230), radius=75, border=30 * (screen_height / 1080))
+                        pressedColour=(121, 78, 230), radius=75, border=30 * (screen_height / 1080),
+                        onClick=self.run_redactor)
         add_button = button
         return add_button
+
+    def run_redactor(self):
+        self.script = 'redactor'
+        self.running = False
 
     # Создания настроек для открытого уровня
     def set_run_config(self, index):
@@ -398,6 +405,7 @@ class Menu:
         diff = self.difficulty_dropdown_menu.getSelected()
         if diff:
             self.difficult = diff
+        self.script = 'game'
         self.running = False
 
     # Цикл для вывода на экран
@@ -603,6 +611,40 @@ class TargetCircle:
             return [False]
 
 
+class LevelRedactor:
+    def __init__(self, level_name=None):
+        self.bg_image = pygame.transform.smoothscale(pygame.image.load('materials//redactor_default.jpg'),
+                                                     (screen_width, screen_height))
+        if not level_name:
+            self.directory = self.get_new_level()
+            if self.directory:
+                self.create_directory()
+
+    def get_new_level(self):
+        screen.blit(self.bg_image, (0, 0))
+        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
+        text = font.render('select song', True, (124, 62, 249))
+        screen.blit(text, text.get_rect(center=(screen_width // 2, screen_height - 200 * (screen_height / 1080))))
+        pygame.display.update()
+        name = filedialog.askopenfilename(filetypes=(("music files", "*.mp3"),), title='select level music (.mp3)')
+        return name
+
+    def create_directory(self):
+        name = self.directory[self.directory.rfind('/') + 1: self.directory.rfind('.mp3')]
+        c = 1
+        while os.path.exists(f'songs//{name}'):
+            name += str(c)
+        os.makedirs(f'songs//{name}')
+        old_bytes = open('materials//redactor_default.jpg', mode='rb').read()
+        open(f'songs//{name}//bg.jpg', mode='wb').write(old_bytes)
+        open(f'songs//{name}//level.json', mode='w').write('{circles: []}')
+        old_bytes = open(self.directory, mode='rb').read()
+        open(f'songs//{name}//song.mp3', mode='wb').write(old_bytes)
+
+    def run(self):
+        pass
+
+
 running = True
 
 
@@ -614,9 +656,13 @@ def main():
         menu = Menu(settings_data)
         menu.run()
         settings_data = menu.volume_level, menu.difficult, menu.menu_song.get_volume() == 0
-        if running:
+        script = menu.script
+        if script == 'game':
             game = Game(menu.level_name, menu.difficult, menu.volume_level)
             game.run()
+        elif script == 'redactor':
+            redactor = LevelRedactor(menu.level_name)
+            redactor.run()
 
 
 if __name__ == '__main__':
