@@ -637,7 +637,7 @@ class LevelRedactor:
         os.makedirs(f'songs//{name}')
         old_bytes = open('materials//redactor_default.jpg', mode='rb').read()
         open(f'songs//{name}//bg.jpg', mode='wb').write(old_bytes)
-        open(f'songs//{name}//level.json', mode='w').write('{circles: []}')
+        open(f'songs//{name}//level.json', mode='w').write('{"circles": []}')
         old_bytes = open(self.directory, mode='rb').read()
         open(f'songs//{name}//song.mp3', mode='wb').write(old_bytes)
 
