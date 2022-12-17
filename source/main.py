@@ -74,7 +74,7 @@ class Menu:
         self.difficult = args[1]
         self.menu_song = pygame.mixer.Sound('materials//menu_mc.mp3')
         self.return_sound = pygame.mixer.Sound('materials//return.mp3')
-        self.menu_song.play()
+        self.menu_song.play(loops=-1)
         self.confirm_exit_buttons = None
         self.song_list = [arg[1] for arg in os.walk('songs')][0]
         self.level_name = ''
@@ -459,12 +459,12 @@ class Game:
         self.objects = self.create_object_list()
         self.start_animation()
         self.level_music.play()
+        self.total_objects = 0
         self.successful_hits = 0
-        self.targets = len(self.objects)
-        self.bar_percent = 1.01
-        self.bar_speed = 0.0001
-        self.score_delta = 0.001
-        self.scorebar = self.generate_scorebar()
+        self.bar_percent = 1
+        self.bar_speed = 0.0005 * (60 / fps)
+        self.score_delta = 0.1
+        self.score_bar = self.generate_scorebar()
 
     # Анимация появления уровня
     def start_animation(self):
@@ -481,6 +481,17 @@ class Game:
     def blit_background(self):
         screen.blit(self.level_background, (0, 0))
 
+    def blit_accuracy(self):
+        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(20 * (screen_width / 1920)))
+        if self.total_objects == 0:
+            txt = '100%'
+        elif self.successful_hits == 0:
+            txt = '0%'
+        else:
+            txt = f'{round(self.successful_hits / self.total_objects * 100, 2)}%'
+        render = font.render(txt, True, (124, 62, 249))
+        screen.blit(render, (int(570 * (screen_width / 1920)), int(20 * (screen_height / 1080))))
+
     # Создание целей
     def create_object_list(self):
         objects = []
@@ -491,20 +502,25 @@ class Game:
 
     # Расположение на уровне
     def object_events(self, events):
-        WidgetHandler.removeWidget(self.scorebar)
-        self.scorebar = self.generate_scorebar()
+        WidgetHandler.removeWidget(self.score_bar)
+        self.score_bar = self.generate_scorebar()
         for obj in self.objects:
             if obj.start_frame > self.frame:
                 return
             data = obj.frame_update(events)
             if data[0]:
-                self.score(data[1])
+                if not obj.is_checked:
+                    self.score(data[1])
+                    obj.is_checked = True
                 if data[2]:
                     del self.objects[self.objects.index(obj)]
+                elif data[3]:
+                    self.total_objects += 1
 
     # Создание нового кадра игры
     def generate_frame(self, events):
         self.blit_background()
+        self.blit_accuracy()
         self.object_events(events)
         pygame_widgets.update(events)
         if self.check_exit_event(events):
@@ -523,14 +539,14 @@ class Game:
             self.generate_frame(pygame.event.get())
             pygame.display.update()
             clock.tick(fps)
-        WidgetHandler.removeWidget(self.scorebar)
+        WidgetHandler.removeWidget(self.score_bar)
         self.level_music.stop()
         close_animation()
 
     # Успешное попадание
     def score(self, successful):
-        self.successful_hits += 1
         if successful:
+            self.successful_hits += 1
             if self.bar_percent <= (1 - self.score_delta):
                 self.bar_percent += self.score_delta
             else:
@@ -554,12 +570,12 @@ class Game:
 
     # Создание scorebar
     def generate_scorebar(self):
+        score_bar = ProgressBar(screen, int(30 * (screen_width / 1920)), int(10 * (screen_height / 1080)),
+                                int(500 * (screen_width / 1920)), int(35 * (screen_height / 1080)),
+                                lambda: self.bar_percent, curved=True, completedColour=(110, 0, 238),
+                                incompletedColour=(187, 134, 252))
         self.bar_percent -= self.bar_speed
-        scorebar = ProgressBar(screen, int(30 * (screen_width / 1920)), int(10 * (screen_height / 1080)),
-                               int(500 * (screen_width / 1920)), int(35 * (screen_height / 1080)),
-                               lambda: self.bar_percent, curved=True,
-                               completedColour=(110, 0, 238), incompletedColour=(187, 134, 252))
-        return scorebar
+        return score_bar
 
 
 # Класс цели в виде кружка
@@ -576,6 +592,7 @@ class TargetCircle:
         self.frame = 0
         self.radius = 0
         self.death = 0
+        self.is_checked = False
         self.hit_frame = None
         self.hitbox = pygame.Rect(self.x - self.max_radius // 2, self.y - self.max_radius // 2, self.max_radius,
                                   self.max_radius)
@@ -635,7 +652,7 @@ class TargetCircle:
     # Возврат состояния
     def get_data(self):
         if self.death:
-            return [True, self.hit_frame >= self.start_successful_frame, self.death > 45 * (fps / 60)]
+            return [True, self.hit_frame >= self.start_successful_frame, self.death > 45 * (fps / 60), self.death == 1]
         else:
             return [False]
 
@@ -666,7 +683,7 @@ class LevelEditor:
         c = 1
         while os.path.exists(f'songs//{name}'):
             name += str(c)
-        os.makedirs(f'songs//{name}')
+            os.makedirs(f'songs//{name}')
         old_bytes = open('materials//redactor_default.jpg', mode='rb').read()
         open(f'songs//{name}//bg.jpg', mode='wb').write(old_bytes)
         open(f'songs//{name}//level.json', mode='w').write('{"circles": []}')
