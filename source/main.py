@@ -8,7 +8,9 @@ from pygame_widgets.button import ButtonArray, Button
 from pygame_widgets.dropdown import Dropdown
 from pygame_widgets.widget import WidgetHandler
 from pygame_widgets.slider import Slider
+from pygame_widgets.progressbar import ProgressBar
 from random import choice
+
 
 # Необходимо для определения разрешения по неясным причинам
 get_monitors()
@@ -457,6 +459,12 @@ class Game:
         self.objects = self.create_object_list()
         self.start_animation()
         self.level_music.play()
+        self.successful_hits = 0
+        self.targets = len(self.objects)
+        self.bar_percent = 1.01
+        self.bar_speed = 0.0001
+        self.score_delta = 0.001
+        self.scorebar = self.generate_scorebar()
 
     # Анимация появления уровня
     def start_animation(self):
@@ -473,7 +481,7 @@ class Game:
     def blit_background(self):
         screen.blit(self.level_background, (0, 0))
 
-    # Создание объектов
+    # Создание целей
     def create_object_list(self):
         objects = []
         for data in self.level_data["circles"]:
@@ -483,12 +491,14 @@ class Game:
 
     # Расположение на уровне
     def object_events(self, events):
+        WidgetHandler.removeWidget(self.scorebar)
+        self.scorebar = self.generate_scorebar()
         for obj in self.objects:
             if obj.start_frame > self.frame:
                 return
             data = obj.frame_update(events)
             if data[0]:
-                self.score(type(obj), data[1])
+                self.score(data[1])
                 if data[2]:
                     del self.objects[self.objects.index(obj)]
 
@@ -496,6 +506,7 @@ class Game:
     def generate_frame(self, events):
         self.blit_background()
         self.object_events(events)
+        pygame_widgets.update(events)
         if self.check_exit_event(events):
             quit()
         self.frame += 1
@@ -512,11 +523,20 @@ class Game:
             self.generate_frame(pygame.event.get())
             pygame.display.update()
             clock.tick(fps)
+        WidgetHandler.removeWidget(self.scorebar)
         self.level_music.stop()
         close_animation()
 
-    def score(self, object_type, succes):
-        pass
+    # Успешное попадание
+    def score(self, successful):
+        self.successful_hits += 1
+        if successful:
+            if self.bar_percent <= (1 - self.score_delta):
+                self.bar_percent += self.score_delta
+            else:
+                self.bar_percent = 1
+        else:
+            self.bar_percent -= self.score_delta
 
     # Создания целей по уровню сложности
     def generate_key(self):
@@ -531,6 +551,15 @@ class Game:
             return choice([pygame.K_x, pygame.K_c])
         elif self.difficult == 'psycho':
             return choice([pygame.K_z, pygame.K_x, pygame.K_c])
+
+    # Создание scorebar
+    def generate_scorebar(self):
+        self.bar_percent -= self.bar_speed
+        scorebar = ProgressBar(screen, int(30 * (screen_width / 1920)), int(10 * (screen_height / 1080)),
+                               int(500 * (screen_width / 1920)), int(35 * (screen_height / 1080)),
+                               lambda: self.bar_percent, curved=True,
+                               completedColour=(110, 0, 238), incompletedColour=(187, 134, 252))
+        return scorebar
 
 
 # Класс цели в виде кружка
@@ -611,7 +640,8 @@ class TargetCircle:
             return [False]
 
 
-class LevelRedactor:
+# Класс редактора для создания уровней
+class LevelEditor:
     def __init__(self, level_name=None):
         self.bg_image = pygame.transform.smoothscale(pygame.image.load('materials//redactor_default.jpg'),
                                                      (screen_width, screen_height))
@@ -620,6 +650,7 @@ class LevelRedactor:
             if self.directory:
                 self.create_directory()
 
+    # Создание нового уровня
     def get_new_level(self):
         screen.blit(self.bg_image, (0, 0))
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
@@ -629,6 +660,7 @@ class LevelRedactor:
         name = filedialog.askopenfilename(filetypes=(("music files", "*.mp3"),), title='select level music (.mp3)')
         return name
 
+    # Создание папок для хранения материалов уровня
     def create_directory(self):
         name = self.directory[self.directory.rfind('/') + 1: self.directory.rfind('.mp3')]
         c = 1
@@ -661,8 +693,8 @@ def main():
             game = Game(menu.level_name, menu.difficult, menu.volume_level)
             game.run()
         elif script == 'redactor':
-            redactor = LevelRedactor(menu.level_name)
-            redactor.run()
+            editor = LevelEditor(menu.level_name)
+            editor.run()
 
 
 if __name__ == '__main__':
