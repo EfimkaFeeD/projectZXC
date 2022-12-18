@@ -73,8 +73,8 @@ class Menu:
         self.running = True
         self.difficult = args[1]
         self.menu_song = pygame.mixer.Sound('materials//menu_mc.mp3')
+        self.menu_song.play(-1)
         self.return_sound = pygame.mixer.Sound('materials//return.mp3')
-        self.menu_song.play(loops=-1)
         self.confirm_exit_buttons = None
         self.song_list = [arg[1] for arg in os.walk('songs')][0]
         self.level_name = ''
@@ -233,12 +233,8 @@ class Menu:
     # Вывод текста и заднего фона
     def blit(self):
         screen.blit(self.menu_image, self.menu_image.get_rect(center=(screen_width // 2, screen_height // 2)))
-        if self.confirm_exit_buttons:
-            text = 'Exit?'
-        else:
-            text = 'Your songs:'
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
-        songs_text = font.render(text, True, (124, 62, 249))
+        songs_text = font.render('Your songs:', True, (124, 62, 249))
         songs_text_rect = songs_text.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080)))
         screen.blit(songs_text, songs_text_rect)
 
@@ -252,47 +248,8 @@ class Menu:
             self.volume_level = self.volume_slider.getValue()
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                if self.confirm_exit_buttons:
-                    self.confirm_exit(False)
-                    return
-                self.confirm_exit_buttons = self.generate_confirm_exit_buttons()
-                WidgetHandler.removeWidget(self.buttonArray)
-                WidgetHandler.removeWidget(self.FPS_dropdown_menu)
-                WidgetHandler.removeWidget(self.difficulty_dropdown_menu)
-                WidgetHandler.removeWidget(self.resolution_dropdown_menu)
-                WidgetHandler.removeWidget(self.confirm_button)
-                WidgetHandler.removeWidget(self.add_song_button)
-                WidgetHandler.removeWidget(self.volume_slider)
-                WidgetHandler.removeWidget(self.mute_button)
-
-    # Создание диалога подтверждения выхода из игры
-    def generate_confirm_exit_buttons(self):
-        width = 500 * (screen_width / 1920)
-        height = (60 * (screen_height / 1080) + 30 * (screen_height / 1080)) * 2
-        button_array = NewButtonArray(
-            screen,
-            int(screen_width // 2 - width // 2),
-            int(250 * (screen_height / 1080)),
-            int(width),
-            int(height),
-            (1, 2),
-            border=30 * (screen_height / 1080),
-            topBorder=0,
-            bottomBorder=0,
-            leftBorder=0,
-            rightBorder=0,
-            inactiveColours=[(77, 50, 145) for _ in range(2)],
-            hoverColours=[(54, 35, 103) for _ in range(2)],
-            pressedColours=[(121, 78, 230) for _ in range(2)],
-            radii=[int(25 * (screen_height / 1080)) for _ in range(2)],
-            fonts=[self.buttons_font for _ in range(2)],
-            texts=['Exit', 'Return'],
-            invisible=True,
-            textColours=[self.buttons_font_color for _ in range(2)],
-            onClicks=[lambda x: self.confirm_exit(x) for _ in range(2)],
-            onClickParams=[[True], [False]]
-        )
-        return button_array
+                self.script = 'exit'
+                self.running = False
 
     # Диалог подтверждения выхода из игры
     def confirm_exit(self, arg):
@@ -309,9 +266,6 @@ class Menu:
             self.add_song_button = self.generate_add_song_button()
             self.volume_slider = self.generate_volume_slider()
             self.mute_button = self.generate_mute_button()
-            WidgetHandler.removeWidget(self.confirm_exit_buttons)
-            self.confirm_exit_buttons = None
-            self.return_sound.play()
 
     # Листание списка кнопок песен колёсиком мыши
     def scroll_song_buttons(self, events):
@@ -418,8 +372,9 @@ class Menu:
             self.update_widgets(pygame.event.get())
             pygame.display.update()
         self.confirm_settings()
-        close_animation()
-        self.menu_song.stop()
+        if self.script != 'exit':
+            close_animation()
+            self.menu_song.stop()
         if running:
             WidgetHandler.removeWidget(self.buttonArray)
             WidgetHandler.removeWidget(self.FPS_dropdown_menu)
@@ -683,7 +638,7 @@ class LevelEditor:
         c = 1
         while os.path.exists(f'songs//{name}'):
             name += str(c)
-            os.makedirs(f'songs//{name}')
+        os.makedirs(f'songs//{name}')
         old_bytes = open('materials//redactor_default.jpg', mode='rb').read()
         open(f'songs//{name}//bg.jpg', mode='wb').write(old_bytes)
         open(f'songs//{name}//level.json', mode='w').write('{"circles": []}')
@@ -692,6 +647,69 @@ class LevelEditor:
 
     def run(self):
         pass
+
+
+class ExitMenu:
+    def __init__(self):
+        self.running = True
+        self.image = pygame.image.load('materials//menu_bg.jpg')
+        self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
+        self.buttons = self.generate_confirm_exit_buttons()
+
+    def generate_confirm_exit_buttons(self):
+        width = 500 * (screen_width / 1920)
+        height = (60 * (screen_height / 1080) + 30 * (screen_height / 1080)) * 2
+        button_array = NewButtonArray(
+            screen,
+            int(screen_width // 2 - width // 2),
+            int(250 * (screen_height / 1080)),
+            int(width),
+            int(height),
+            (1, 2),
+            border=30 * (screen_height / 1080),
+            topBorder=0,
+            bottomBorder=0,
+            leftBorder=0,
+            rightBorder=0,
+            inactiveColours=[(77, 50, 145) for _ in range(2)],
+            hoverColours=[(54, 35, 103) for _ in range(2)],
+            pressedColours=[(121, 78, 230) for _ in range(2)],
+            radii=[int(25 * (screen_height / 1080)) for _ in range(2)],
+            fonts=[self.buttons_font for _ in range(2)],
+            texts=['Exit', 'Return'],
+            invisible=True,
+            textColours=[(255, 255, 255) for _ in range(2)],
+            onClicks=[lambda x: self.confirm_exit(x) for _ in range(2)],
+            onClickParams=[[True], [False]]
+        )
+        return button_array
+
+    def confirm_exit(self, arg):
+        global running
+        if arg:
+            running = False
+        self.running = False
+
+    def check_exit_event(self, events):
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.running = False
+
+    def run(self):
+        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
+        text = font.render('Exit?', True, (124, 62, 249))
+        text_rect = text.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080)))
+        while self.running:
+            screen.blit(self.image, (0, 0))
+            screen.blit(text, text_rect)
+            events = pygame.event.get()
+            self.check_exit_event(events)
+            pygame_widgets.update(events)
+            pygame.display.update()
+        pygame.mixer.stop()
+        WidgetHandler.removeWidget(self.buttons)
+        if not running:
+            close_animation()
 
 
 running = True
@@ -704,7 +722,7 @@ def main():
     while running:
         menu = Menu(settings_data)
         menu.run()
-        settings_data = menu.volume_level, menu.difficult, menu.menu_song.get_volume() == 0
+        settings_data = [menu.volume_level, menu.difficult, menu.menu_song.get_volume() == 0]
         script = menu.script
         if script == 'game':
             game = Game(menu.level_name, menu.difficult, menu.volume_level)
@@ -712,6 +730,9 @@ def main():
         elif script == 'redactor':
             editor = LevelEditor(menu.level_name)
             editor.run()
+        elif script == 'exit':
+            window = ExitMenu()
+            window.run()
 
 
 if __name__ == '__main__':
