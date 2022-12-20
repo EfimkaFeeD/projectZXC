@@ -653,6 +653,7 @@ class ExitMenu:
     def __init__(self):
         self.running = True
         self.image = pygame.image.load('materials//menu_bg.jpg')
+        self.image = pygame.transform.smoothscale(self.image, (screen_width, screen_height))
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
         self.buttons = self.generate_confirm_exit_buttons()
 
