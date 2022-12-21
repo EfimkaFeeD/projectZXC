@@ -348,11 +348,15 @@ class Menu:
             self.refactor(new_resolution)
         music_name = self.menu_songs_dropdown_menu.getSelected()
         if music_name:
+            muted = self.menu_song.get_volume() == 0
             self.menu_songs_dropdown_menu.reset()
             self.menu_song.stop()
             self.menu_song = pygame.mixer.Sound('materials//menu_musics//' + music_name)
             self.menu_song.play(-1)
-            self.menu_song.set_volume(self.volume_level)
+            if muted:
+                self.menu_song.set_volume(0)
+            else:
+                self.menu_song.set_volume(self.volume_level)
 
     # Кнопка для открытия редактора нового уровня
     def generate_add_song_button(self):
