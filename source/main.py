@@ -72,9 +72,9 @@ class Menu:
     def __init__(self, args):
         self.running = True
         self.difficult = args[1]
-        self.menu_song = pygame.mixer.Sound('materials//menu_mc.mp3')
+        self.menu_songs = [arg[2] for arg in os.walk('materials//menu_musics')][0]
+        self.menu_song = pygame.mixer.Sound('materials//menu_musics//' + self.menu_songs[0])
         self.menu_song.play(-1)
-        self.return_sound = pygame.mixer.Sound('materials//return.mp3')
         self.confirm_exit_buttons = None
         self.song_list = [arg[1] for arg in os.walk('songs')][0]
         self.level_name = ''
@@ -82,6 +82,7 @@ class Menu:
         self.menu_image = pygame.transform.smoothscale(self.menu_image, (screen_width, screen_height))
         self.buttons = []
         self.script = ''
+        self.wait_time = None
         self.buttons_scroll = 0
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
         self.buttons_font_color = (255, 255, 255)
@@ -91,12 +92,28 @@ class Menu:
         self.resolution_dropdown_menu = self.generate_resolution_dropdown_menu()
         self.confirm_button = self.generate_confirm_button()
         self.add_song_button = self.generate_add_song_button()
+        self.menu_songs_dropdown_menu = self.generate_menu_songs_dropdown_menu()
         self.volume_level = args[0]
         if args[2]:
             self.menu_song.set_volume(0)
         self.volume_slider = self.generate_volume_slider()
         self.mute_button = self.generate_mute_button()
         self.start_animation()
+
+    def generate_menu_songs_dropdown_menu(self):
+        menu_songs_dropdown_menu = Dropdown(
+            screen, int(275 * (screen_width / 1920)), int(15 * (screen_height / 1080)),
+            int(200 * (screen_width / 1920)), int(50 * (screen_height / 1080)), name='music',
+            values=self.menu_songs,
+            choices=[t[:t.rfind('.')] if len(t) < 14 else t[:11] for t in self.menu_songs],
+            borderRadius=int(25 * (screen_height / 1080)), direction='down', textHAlign='centre',
+            font=self.buttons_font,
+            inactiveColour=(77, 50, 145),
+            hoverColour=(54, 35, 103),
+            textColour=self.buttons_font_color,
+            pressedColour=(121, 78, 230)
+        )
+        return menu_songs_dropdown_menu
 
     # Создание списка кнопок треков
     def generate_song_button_array(self, text=None):
@@ -121,11 +138,11 @@ class Menu:
             radii=[int(25 * (screen_height / 1080)) for _ in range(len(self.song_list))],
             fonts=[self.buttons_font for _ in range(len(texts))],
             texts=[t if len(t) < 30 else t[:31] for t in texts],
-            colour=(255, 255, 255),
             invisible=True,
             textColours=[self.buttons_font_color for _ in range(len(texts))],
-            onClicks=[lambda x: self.set_run_config(x) for _ in range(len(texts))],
-            onClickParams=[[i] for i in range(len(texts))]
+            onClicks=[self.start_waiting for _ in range(len(texts))],
+            onReleases=[self.set_run_config for _ in range(len(texts))],
+            onReleaseParams=[[i] for i in range(len(texts))]
         )
         return song_button_array
 
@@ -195,7 +212,6 @@ class Menu:
                                int(250 * (screen_width / 1920)), int(50 * (screen_height / 1080)),
                                min=5, max=100, step=5, initial=self.volume_level,
                                colour=(77, 50, 145), handleColour=(121, 78, 230))
-        pygame.display.update()
         return volume_slider
 
     # Переключение состояния музыки
@@ -241,6 +257,8 @@ class Menu:
     # Обновление всех виджетов
     def update_widgets(self, events):
         global running
+        if self.wait_time:
+            self.wait_time += 1 / fps
         pygame_widgets.update(events)
         self.scroll_song_buttons(events)
         if self.menu_song.get_volume() != 0:
@@ -251,39 +269,26 @@ class Menu:
                 self.script = 'exit'
                 self.running = False
 
-    # Диалог подтверждения выхода из игры
-    def confirm_exit(self, arg):
-        global running
-        if arg:
-            self.running = False
-            running = False
-        else:
-            self.buttonArray = self.generate_song_button_array()
-            self.FPS_dropdown_menu = self.generate_fps_dropdown_menu()
-            self.difficulty_dropdown_menu = self.generate_difficulty_dropdown_menu()
-            self.resolution_dropdown_menu = self.generate_resolution_dropdown_menu()
-            self.confirm_button = self.generate_confirm_button()
-            self.add_song_button = self.generate_add_song_button()
-            self.volume_slider = self.generate_volume_slider()
-            self.mute_button = self.generate_mute_button()
+    def start_waiting(self):
+        self.wait_time = 1 / fps
 
     # Листание списка кнопок песен колёсиком мыши
     def scroll_song_buttons(self, events):
-        if self.confirm_exit_buttons:
-            return
         pos = pygame.mouse.get_pos()
         if not pygame.Rect(self.buttonArray.getX(), self.buttonArray.getY(), self.buttonArray.getWidth(),
                            screen_height).collidepoint(pos):
             return
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN:
-                WidgetHandler.removeWidget(self.buttonArray)
                 if event.button == 5:
                     if self.buttons_scroll < len(self.song_list) - 1:
                         self.buttons_scroll += 1
                 elif event.button == 4:
                     if self.buttons_scroll > 0:
                         self.buttons_scroll -= 1
+                else:
+                    return
+                WidgetHandler.removeWidget(self.buttonArray)
                 self.buttonArray = self.generate_song_button_array(text=self.song_list[self.buttons_scroll:])
 
     # Изменение под новое разрешение экрана
@@ -299,6 +304,7 @@ class Menu:
         WidgetHandler.removeWidget(self.add_song_button)
         WidgetHandler.removeWidget(self.volume_slider)
         WidgetHandler.removeWidget(self.mute_button)
+        WidgetHandler.removeWidget(self.menu_songs_dropdown_menu)
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
         self.buttonArray = self.generate_song_button_array()
         self.FPS_dropdown_menu = self.generate_fps_dropdown_menu()
@@ -309,6 +315,7 @@ class Menu:
         self.add_song_button = self.generate_add_song_button()
         self.volume_slider = self.generate_volume_slider()
         self.mute_button = self.generate_mute_button()
+        self.menu_songs_dropdown_menu = self.generate_menu_songs_dropdown_menu()
 
     # Создание кнопки подтверждения настроек
     def generate_confirm_button(self):
@@ -339,6 +346,13 @@ class Menu:
             fps = int(new_fps)
         if new_resolution and new_resolution != (screen_width, screen_height):
             self.refactor(new_resolution)
+        music_name = self.menu_songs_dropdown_menu.getSelected()
+        if music_name:
+            self.menu_songs_dropdown_menu.reset()
+            self.menu_song.stop()
+            self.menu_song = pygame.mixer.Sound('materials//menu_musics//' + music_name)
+            self.menu_song.play(-1)
+            self.menu_song.set_volume(self.volume_level)
 
     # Кнопка для открытия редактора нового уровня
     def generate_add_song_button(self):
@@ -347,12 +361,12 @@ class Menu:
                         int(75 * (screen_height / 1080)), text='+', font=self.buttons_font,
                         textColour=self.buttons_font_color, inactiveColour=(77, 50, 145), hoverColour=(54, 35, 103),
                         pressedColour=(121, 78, 230), radius=75, border=30 * (screen_height / 1080),
-                        onClick=self.run_redactor)
+                        onClick=self.run_editor)
         add_button = button
         return add_button
 
-    def run_redactor(self):
-        self.script = 'redactor'
+    def run_editor(self):
+        self.script = 'editor'
         self.running = False
 
     # Создания настроек для открытого уровня
@@ -361,7 +375,10 @@ class Menu:
         diff = self.difficulty_dropdown_menu.getSelected()
         if diff:
             self.difficult = diff
-        self.script = 'game'
+        if self.wait_time < 2:
+            self.script = 'game'
+        else:
+            self.script = 'editor'
         self.running = False
 
     # Цикл для вывода на экран
@@ -384,6 +401,7 @@ class Menu:
             WidgetHandler.removeWidget(self.add_song_button)
             WidgetHandler.removeWidget(self.volume_slider)
             WidgetHandler.removeWidget(self.mute_button)
+            WidgetHandler.removeWidget(self.menu_songs_dropdown_menu)
 
     # Анимация перехода на уровень
     def start_animation(self):
@@ -416,9 +434,9 @@ class Game:
         self.level_music.play()
         self.total_objects = 0
         self.successful_hits = 0
-        self.bar_percent = 1
         self.bar_speed = 0.0005 * (60 / fps)
         self.score_delta = 0.1
+        self.bar_percent = 1 + self.bar_speed
         self.score_bar = self.generate_scorebar()
 
     # Анимация появления уровня
@@ -457,8 +475,6 @@ class Game:
 
     # Расположение на уровне
     def object_events(self, events):
-        WidgetHandler.removeWidget(self.score_bar)
-        self.score_bar = self.generate_scorebar()
         for obj in self.objects:
             if obj.start_frame > self.frame:
                 return
@@ -527,10 +543,13 @@ class Game:
     def generate_scorebar(self):
         score_bar = ProgressBar(screen, int(30 * (screen_width / 1920)), int(10 * (screen_height / 1080)),
                                 int(500 * (screen_width / 1920)), int(35 * (screen_height / 1080)),
-                                lambda: self.bar_percent, curved=True, completedColour=(110, 0, 238),
+                                self.update_bar_precent, curved=True, completedColour=(110, 0, 238),
                                 incompletedColour=(187, 134, 252))
-        self.bar_percent -= self.bar_speed
         return score_bar
+
+    def update_bar_precent(self):
+        self.bar_percent -= self.bar_speed
+        return self.bar_percent
 
 
 # Класс цели в виде кружка
@@ -614,17 +633,23 @@ class TargetCircle:
 
 # Класс редактора для создания уровней
 class LevelEditor:
+    default_bg = pygame.transform.smoothscale(pygame.image.load('materials//redactor_default.jpg'),
+                                              (screen_width, screen_height))
+
     def __init__(self, level_name=None):
-        self.bg_image = pygame.transform.smoothscale(pygame.image.load('materials//redactor_default.jpg'),
-                                                     (screen_width, screen_height))
+        self.running = True
+        self.frame = 0
+        self.level_name = level_name
         if not level_name:
             self.directory = self.get_new_level()
             if self.directory:
                 self.create_directory()
+            self.level_name = self.directory[self.directory.rfind('/') + 1: self.directory.rfind('.mp3')]
+        self.level_music, self.level_background, self.objects = self.load_materials()
 
     # Создание нового уровня
     def get_new_level(self):
-        screen.blit(self.bg_image, (0, 0))
+        screen.blit(self.default_bg, (0, 0))
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
         text = font.render('select song', True, (124, 62, 249))
         screen.blit(text, text.get_rect(center=(screen_width // 2, screen_height - 200 * (screen_height / 1080))))
@@ -645,13 +670,89 @@ class LevelEditor:
         old_bytes = open(self.directory, mode='rb').read()
         open(f'songs//{name}//song.mp3', mode='wb').write(old_bytes)
 
+    def load_materials(self):
+        level_music = pygame.mixer.Sound('songs\\' + self.level_name + '\\' + 'song.mp3')
+        level_background = pygame.transform.smoothscale(
+            pygame.image.load('songs\\' + self.level_name + '\\' + 'bg.jpg'), (screen_width, screen_height))
+        objects = []
+        with open('songs\\' + self.level_name + '\\' + 'level.json') as f:
+            for data in json.load(f)["circles"]:
+                objects.append(EditorCircle(x=data['x'], y=data['y'], speed=data['speed'], frame=data['frame'],
+                                            radius=data['radius']))
+        return level_music, level_background, objects
+
     def run(self):
-        pass
+        while self.running:
+            screen.blit(self.level_background, (0, 0))
+            events = pygame.event.get()
+            self.update(events)
+            pygame.display.update()
+
+    def update(self, events):
+        pos = pygame.mouse.get_pos()
+        for event in events:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                for object in self.objects:
+                    if object.check_spawn(pos):
+                        break
+        else:
+            self.objects.append(EditorCircle(x=pos[0], y=pos[1], frame=self.frame))
+
+    def generate_frame_slider(self):
+        volume_slider = Slider(screen, int(50 * (screen_width / 1920)),
+                               int(screen_height - 75 * (screen_height / 1080)),
+                               int(250 * (screen_width / 1920)), int(50 * (screen_height / 1080)),
+                               min=5, max=100, step=5, initial=self.frame,
+                               colour=(77, 50, 145), handleColour=(121, 78, 230))
+        pygame.display.update()
+        return volume_slider
+
+
+class EditorCircle(TargetCircle):
+    def __init__(self, x, y, frame, speed=1, radius=50, key=pygame.K_c):
+        super().__init__(x=x, y=y, speed=speed, radius=radius, key=key, frame=frame)
+        self.color = (77, 50, 145)
+        self.state = ''
+
+    def draw(self):
+        screen.blit(self.outline_image, self.outline_image.get_rect(center=(self.x, self.y)))
+        pygame.draw.circle(center=(self.x, self.y), color=self.color, radius=self.radius - 5 * (screen_width / 1920),
+                           surface=screen)
+        render = self.font.render(str(self.speed), True, (255, 255, 255))
+        screen.blit(render, render.get_rect(center=(self.x, self.y)))
+
+    def update(self, events):
+        pos = pygame.mouse.get_pos()
+        if self.hitbox.collidepoint(pos):
+            self.color = (54, 35, 103)
+            for event in events:
+                if event.type == pygame.MOUSEBUTTONUP:
+                    self.color = (121, 78, 230)
+                    if event.button == 2:
+                        self.state = 'remove'
+                    if event.button == 4:
+                        if pygame.mouse.get_pressed()[1]:
+                            self.speed += 0.1
+                        else:
+                            self.radius += 1 * (screen_width / 1920)
+                    if event.button == 5:
+                        if pygame.mouse.get_pressed()[1]:
+                            self.speed -= 0.1
+                        else:
+                            self.radius -= 1 * (screen_width / 1920)
+                    break
+            else:
+                self.color = (77, 50, 145)
+
+    def check_spawn(self, pos):
+        return self.hitbox.colliderect(pygame.Rect(pos[0], pos[1], 50 * (screen_width / 1920),
+                                                   50 * (screen_width / 1920)))
 
 
 class ExitMenu:
     def __init__(self):
         self.running = True
+        self.return_sound = pygame.mixer.Sound('materials//return.mp3')
         self.image = pygame.image.load('materials//menu_bg.jpg')
         self.image = pygame.transform.smoothscale(self.image, (screen_width, screen_height))
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
@@ -728,7 +829,7 @@ def main():
         if script == 'game':
             game = Game(menu.level_name, menu.difficult, menu.volume_level)
             game.run()
-        elif script == 'redactor':
+        elif script == 'editor':
             editor = LevelEditor(menu.level_name)
             editor.run()
         elif script == 'exit':
