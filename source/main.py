@@ -340,13 +340,13 @@ class Menu:
     # Изменение настроек
     def confirm_settings(self):
         global fps
+        music_name = self.menu_songs_dropdown_menu.getSelected()
         new_fps = self.FPS_dropdown_menu.getSelected()
         new_resolution = self.resolution_dropdown_menu.getSelected()
         if new_fps:
             fps = int(new_fps)
         if new_resolution and new_resolution != (screen_width, screen_height):
             self.refactor(new_resolution)
-        music_name = self.menu_songs_dropdown_menu.getSelected()
         if music_name:
             muted = self.menu_song.get_volume() == 0
             self.menu_songs_dropdown_menu.reset()
@@ -497,6 +497,7 @@ class Game:
         self.blit_background()
         self.blit_accuracy()
         self.object_events(events)
+        self.check_end_game()
         pygame_widgets.update(events)
         if self.check_exit_event(events):
             quit()
@@ -506,7 +507,25 @@ class Game:
     def check_exit_event(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                self.running = False
+                WidgetHandler.removeWidget(self.score_bar)
+                pygame.mixer.pause()
+                pause_menu = GamePauseMenu(self.level_background)
+                if pause_menu.state == 'back':
+                    self.running = False
+                else:
+                    pygame.mixer.unpause()
+                    self.score_bar = self.generate_scorebar()
+
+    def check_end_game(self):
+        if self.bar_percent < 0:
+            WidgetHandler.removeWidget(self.score_bar)
+            GameResultMenu('loose')
+        elif len(self.objects) == 0:
+            WidgetHandler.removeWidget(self.score_bar)
+            GameResultMenu('win', self.successful_hits, self.total_objects)
+        else:
+            return
+        self.running = False
 
     # Цикл для вывода на экран
     def run(self):
@@ -514,7 +533,6 @@ class Game:
             self.generate_frame(pygame.event.get())
             pygame.display.update()
             clock.tick(fps)
-        WidgetHandler.removeWidget(self.score_bar)
         self.level_music.stop()
         close_animation()
 
@@ -552,7 +570,8 @@ class Game:
         return score_bar
 
     def update_bar_precent(self):
-        self.bar_percent -= self.bar_speed
+        if self.bar_percent >= self.bar_speed:
+            self.bar_percent -= self.bar_speed
         return self.bar_percent
 
 
@@ -687,10 +706,22 @@ class LevelEditor:
 
     def run(self):
         while self.running:
-            screen.blit(self.level_background, (0, 0))
+            self.blit_bg()
             events = pygame.event.get()
+            self.check_exit_event(events)
             self.update(events)
             pygame.display.update()
+
+    def blit_bg(self):
+        screen.blit(self.level_background, (0, 0))
+        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
+        text = font.render('Welcome to LevelEditor!', True, (124, 62, 249))
+        screen.blit(text, text.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080))))
+
+    def check_exit_event(self, events):
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.running = False
 
     def update(self, events):
         pos = pygame.mouse.get_pos()
@@ -816,6 +847,101 @@ class ExitMenu:
         WidgetHandler.removeWidget(self.buttons)
         if not running:
             close_animation()
+
+
+class GamePauseMenu:
+    def __init__(self, bg):
+        self.bg_image = bg
+        self.state = ''
+        self.buttons = self.generate_buttons()
+        self.running = True
+        self.run()
+
+    def generate_buttons(self):
+        width = 500 * (screen_width / 1920)
+        height = (60 * (screen_height / 1080) + 30 * (screen_height / 1080)) * 2
+        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
+        button_array = NewButtonArray(
+            screen,
+            int(screen_width // 2 - width // 2),
+            int(250 * (screen_height / 1080)),
+            int(width),
+            int(height),
+            (1, 2),
+            border=30 * (screen_height / 1080),
+            topBorder=0,
+            bottomBorder=0,
+            leftBorder=0,
+            rightBorder=0,
+            inactiveColours=[(77, 50, 145) for _ in range(2)],
+            hoverColours=[(54, 35, 103) for _ in range(2)],
+            pressedColours=[(121, 78, 230) for _ in range(2)],
+            radii=[int(25 * (screen_height / 1080)) for _ in range(2)],
+            fonts=[font for _ in range(2)],
+            texts=['Continue', 'Back'],
+            invisible=True,
+            textColours=[(255, 255, 255) for _ in range(2)],
+            onClicks=[lambda x: self.update_state(x) for _ in range(2)],
+            onClickParams=[['continue'], ['back']]
+        )
+        return button_array
+
+    def update_state(self, state):
+        self.state = state
+        self.running = False
+
+    def run(self):
+        while self.running:
+            screen.blit(self.bg_image, (0, 0))
+            events = pygame.event.get()
+            pygame_widgets.update(events)
+            for e in events:
+                if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
+                    self.state = 'back'
+                    self.running = False
+            pygame.display.update()
+        WidgetHandler.removeWidget(self.buttons)
+
+
+class GameResultMenu:
+    def __init__(self, state, suc=0, total=0):
+        self.state = state
+        if state == 'win':
+            self.bg = pygame.transform.smoothscale(pygame.image.load('materials//win.jpg'),
+                                                   (screen_width, screen_height))
+        else:
+            self.bg = pygame.transform.smoothscale(pygame.image.load('materials//loose.jpg'),
+                                                   (screen_width, screen_height))
+        self.accuracy = round(suc / total * 100, 2)
+        self.successful = suc
+        self.total = total
+        self.running = True
+        self.run()
+
+    def blit(self):
+        screen.blit(self.bg, (0, 0))
+        big_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
+        small_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
+        if self.state == 'loose':
+            text = big_font.render('LOOSE!', True, (124, 62, 249))
+            screen.blit(text, text.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080))))
+        else:
+            text = big_font.render('WIN!', True, (124, 62, 249))
+            screen.blit(text, text.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080))))
+            text = small_font.render(f'accuracy - {self.accuracy}', True, (124, 62, 249))
+            screen.blit(text, text.get_rect(center=(screen_width // 2, 200 * (screen_height / 1080))))
+            text = small_font.render(f'successful - {self.successful}', True, (124, 62, 249))
+            screen.blit(text, text.get_rect(center=(screen_width // 2, 300 * (screen_height / 1080))))
+            text = small_font.render(f'total - {self.total}', True, (124, 62, 249))
+            screen.blit(text, text.get_rect(center=(screen_width // 2, 400 * (screen_height / 1080))))
+
+    def run(self):
+        self.blit()
+        pygame.display.update()
+        while self.running:
+            for e in pygame.event.get():
+                if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
+                    self.running = False
 
 
 running = True
