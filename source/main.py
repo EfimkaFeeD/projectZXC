@@ -438,8 +438,8 @@ class Game:
         self.level_music.play()
         self.total_objects = 0
         self.successful_hits = 0
-        self.bar_speed = 0.0005 * (60 / fps)
-        self.score_delta = 0.1
+        self.bar_speed = 0.0009 * (60 / fps)
+        self.score_delta = 0.2
         self.bar_percent = 1 + self.bar_speed
         self.score_bar = self.generate_scorebar()
 
@@ -522,7 +522,7 @@ class Game:
             GameResultMenu('loose')
         elif len(self.objects) == 0:
             WidgetHandler.removeWidget(self.score_bar)
-            GameResultMenu('win', self.successful_hits, self.total_objects)
+            GameResultMenu('win', self.successful_hits, self.total_objects, self.difficult)
         else:
             return
         self.running = False
@@ -904,17 +904,18 @@ class GamePauseMenu:
 
 
 class GameResultMenu:
-    def __init__(self, state, suc=0, total=0):
+    def __init__(self, state, suc=0, total=0, diff=''):
         self.state = state
         if state == 'win':
             self.bg = pygame.transform.smoothscale(pygame.image.load('materials//win.jpg'),
                                                    (screen_width, screen_height))
+            self.accuracy = round(suc / total * 100, 2)
         else:
             self.bg = pygame.transform.smoothscale(pygame.image.load('materials//loose.jpg'),
                                                    (screen_width, screen_height))
-        self.accuracy = round(suc / total * 100, 2)
         self.successful = suc
         self.total = total
+        self.difficult = diff
         self.running = True
         self.run()
 
@@ -928,12 +929,14 @@ class GameResultMenu:
         else:
             text = big_font.render('WIN!', True, (124, 62, 249))
             screen.blit(text, text.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080))))
-            text = small_font.render(f'accuracy - {self.accuracy}', True, (124, 62, 249))
+            text = small_font.render(f'accuracy - {self.accuracy}%', True, (124, 62, 249))
             screen.blit(text, text.get_rect(center=(screen_width // 2, 200 * (screen_height / 1080))))
             text = small_font.render(f'successful - {self.successful}', True, (124, 62, 249))
             screen.blit(text, text.get_rect(center=(screen_width // 2, 300 * (screen_height / 1080))))
             text = small_font.render(f'total - {self.total}', True, (124, 62, 249))
             screen.blit(text, text.get_rect(center=(screen_width // 2, 400 * (screen_height / 1080))))
+            text = small_font.render(f'difficult - {self.difficult}', True, (124, 62, 249))
+            screen.blit(text, text.get_rect(center=(screen_width // 2, 500 * (screen_height / 1080))))
 
     def run(self):
         self.blit()
