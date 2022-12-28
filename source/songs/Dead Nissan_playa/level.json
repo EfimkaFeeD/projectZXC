@@ -1,6 +1,0 @@
-{
-  "circles": [{"frame": 60, "x":  200, "y": 200, "radius": 50, "speed":  1},
-    {"frame": 120, "x":  280, "y": 500, "radius": 60, "speed":  1.5},
-    {"frame": 150, "x":  300, "y": 100, "radius": 40, "speed":  1.1},
-    {"frame": 230, "x":  650, "y": 900, "radius": 70, "speed":  1.2}]
-}
