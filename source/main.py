@@ -562,9 +562,18 @@ class Game:
         objects = []
         radius = self.level_data['common']['radius']
         speed = self.level_data['common']['speed']
+        color = self.level_data['common']['color']
+        max_radius = int(radius * (screen_width / 1920))
+        outline_image = pygame.transform.smoothscale(pygame.image.load('materials//circle_out.png'),
+                                                     (max_radius * 2 + 10 * (screen_width / 1920),
+                                                      max_radius * 2 + 10 * (screen_width / 1920)))
+        font = pygame.font.SysFont('roboto', max_radius * 2)
+        fail_img = pygame.transform.smoothscale(pygame.image.load('materials\\circ_fail.png'), (max_radius, max_radius))
+        suc_img = pygame.transform.smoothscale(pygame.image.load('materials\\circ_suc.png'), (max_radius, max_radius))
         for data in self.level_data["circles"]:
             objects.append(TargetCircle(start_time=data['time'], x=data["x"], y=data["y"], speed=speed,
-                                        radius=radius, key=self.generate_key()))
+                                        radius=radius, key=self.generate_key(), color=color, suc=suc_img,
+                                        fail=fail_img, outline=outline_image, font=font))
         return objects
 
     # Расположение на уровне
@@ -594,7 +603,7 @@ class Game:
     # Выход из игры в меню
     def check_exit_event(self, events):
         for event in events:
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE or not pygame.mouse.get_focused():
                 WidgetHandler.removeWidget(self.score_bar)
                 pygame.mixer.pause()
                 wait_time = time()
@@ -673,7 +682,9 @@ class Game:
 
 # Класс цели в виде кружка
 class TargetCircle:
-    def __init__(self, x, y, radius, speed, start_time, key, cheats=False):
+    hit_sound = pygame.mixer.Sound('materials\\circle_click.mp3')
+
+    def __init__(self, x, y, radius, speed, start_time, key, color, outline, font, suc, fail, cheats=False):
         self.x = int(x * (screen_width / 1920))
         self.y = int(y * (screen_height / 1080))
         self.max_radius = int(radius * (screen_width / 1920))
@@ -689,18 +700,15 @@ class TargetCircle:
         self.is_checked = False
         self.cheats = cheats
         self.hit_time = None
+        self.color = color
         self.wait_time = None
         self.hitbox = pygame.Rect(self.x - self.max_radius // 2, self.y - self.max_radius // 2, self.max_radius,
                                   self.max_radius)
-        self.outline_image = pygame.transform.smoothscale(pygame.image.load('materials//circle_out.png'),
-                                                          (self.max_radius * 2 + 10 * (screen_width / 1920),
-                                                           self.max_radius * 2 + 10 * (screen_width / 1920)))
-        self.font = pygame.font.Font('materials\\Press Start 2P.ttf', self.max_radius)
+        self.outline_image = outline
+        self.font = font
         self.text = self.font.render(self.text_key, True, (255, 255, 255))
-        size = self.max_radius
-        self.fail_img = pygame.transform.smoothscale(pygame.image.load('materials\\circ_fail.png'), (size, size))
-        self.suc_img = pygame.transform.smoothscale(pygame.image.load('materials\\circ_suc.png'), (size, size))
-        self.hit_sound = pygame.mixer.Sound('materials\\circle_click.mp3')
+        self.fail_img = fail
+        self.suc_img = suc
 
     # Движение кружка
     def move(self):
@@ -735,7 +743,7 @@ class TargetCircle:
                 screen.blit(self.fail_img, self.fail_img.get_rect(center=(self.x, self.y)))
             return
         screen.blit(self.outline_image, self.outline_image.get_rect(center=(self.x, self.y)))
-        pygame.draw.circle(screen, color=(0, 0, 0), center=(self.x, self.y), radius=self.radius)
+        pygame.draw.circle(screen, color=self.color, center=(self.x, self.y), radius=self.radius)
         screen.blit(self.text, self.text.get_rect(center=(self.x, self.y)))
 
     # Обработка попадания
@@ -780,6 +788,8 @@ class LevelEditor:
         self.button_invincible = False
         self.frame = 0
         self.level_name = level_name
+        self.tools = ['set bg', 'set speed', 'set radius', 'set bar speed', 'set up delta', 'set down delta',
+                      'delete level', 'rename']
         if not level_name:
             self.directory = self.get_new_level()
             if not self.directory:
@@ -790,6 +800,8 @@ class LevelEditor:
         self.level_music, self.level_background, self.objects, self.common_data = self.load_materials()
         self.mapping_buttons = self.generate_mapping_buttons()
         self.tool_buttons = self.generate_tool_buttons()
+        self.color_dropdown = self.generate_color_dropdown()
+        self.confirm_color_button = self.generate_confirm_color_button()
 
     # Создание нового уровня
     def get_new_level(self):
@@ -812,7 +824,8 @@ class LevelEditor:
         old_bytes = open('materials//redactor_default.jpg', mode='rb').read()
         open(f'songs//{name}//bg.jpg', mode='wb').write(old_bytes)
         open(f'songs//{name}//level.json', mode='w').write('{"common": {"radius":  50, "speed":  0.9, "delta_up":  0.2,'
-                                                           ' "delta_down":  0.3, "bar_speed":  0.0009}, "circles": []}')
+                                                           ' "delta_down":  0.3, "bar_speed":  0.0009, color: "black"},'
+                                                           ' "circles": []}')
         old_bytes = open(self.directory, mode='rb').read()
         open(f'songs//{name}//song.mp3', mode='wb').write(old_bytes)
 
@@ -844,6 +857,8 @@ class LevelEditor:
         self.level_music.stop()
         WidgetHandler.removeWidget(self.tool_buttons)
         WidgetHandler.removeWidget(self.mapping_buttons)
+        WidgetHandler.removeWidget(self.color_dropdown)
+        WidgetHandler.removeWidget(self.confirm_color_button)
 
     def blit_bg(self):
         screen.blit(self.level_background, (0, 0))
@@ -856,11 +871,15 @@ class LevelEditor:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 WidgetHandler.removeWidget(self.mapping_buttons)
                 WidgetHandler.removeWidget(self.tool_buttons)
+                WidgetHandler.removeWidget(self.color_dropdown)
+                WidgetHandler.removeWidget(self.confirm_color_button)
                 window = PauseMenu(self.level_background, 'save and exit', 'return')
                 if window.state == 'save and exit':
                     self.running = False
                 self.tool_buttons = self.generate_tool_buttons()
                 self.mapping_buttons = self.generate_mapping_buttons()
+                self.color_dropdown = self.generate_color_dropdown()
+                self.confirm_color_button = self.generate_confirm_color_button()
 
     def generate_mapping_buttons(self):
         width = 500 * (screen_width / 1920)
@@ -893,8 +912,7 @@ class LevelEditor:
 
     def generate_tool_buttons(self):
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(10 * (screen_width / 1920)))
-        tools = ['set bg', 'set speed', 'set radius', 'set bar speed', 'set up delta', 'set down delta', 'delete level',
-                 'rename']
+        tools = self.tools
         button_array = NewButtonArray(
             screen,
             int(25 * (screen_width / 1920)), int(15 * (screen_height / 1080)),
@@ -918,12 +936,63 @@ class LevelEditor:
         )
         return button_array
 
+    @staticmethod
+    def generate_color_dropdown():
+        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(10 * (screen_width / 1920)))
+        colors = ['black', 'blue', 'green', 'red', 'yellow']
+        x = int(25 * (screen_width / 1920))
+        dropdown_menu = Dropdown(
+            screen, x, int(75 * (screen_height / 1080)),
+            int(170 * (screen_width / 1920)), int(50 * (screen_height / 1080)), name='circle color',
+            choices=colors,
+            borderRadius=int(25 * (screen_height / 1080)), direction='down', textHAlign='centre',
+            font=font,
+            inactiveColour=(77, 50, 145),
+            hoverColour=(54, 35, 103),
+            textColour=(255, 255, 255),
+            pressedColour=(121, 78, 230)
+        )
+        return dropdown_menu
+
+    def generate_confirm_color_button(self):
+        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(10 * (screen_width / 1920)))
+        x = int(225 * (screen_width / 1920))
+        button = Button(
+            screen,
+            x,
+            int(75 * (screen_height / 1080)),
+            int(170 * (screen_width / 1920)),
+            int(50 * (screen_height / 1080)),
+            text='confirm color',
+            radius=int(25 * (screen_height / 1080)),
+            textColour=(255, 255, 255),
+            inactiveColour=(77, 50, 145),
+            hoverColour=(54, 35, 103),
+            pressedColour=(121, 78, 230),
+            font=font,
+            border=30 * (screen_height / 1080),
+            onClick=self.select_color,
+        )
+        return button
+
+    def select_color(self):
+        new_color = self.color_dropdown.getSelected()
+        if new_color:
+            with open('songs\\' + self.level_name + '\\' + 'level.json') as f:
+                wl = json.load(f)
+                wl['common']['color'] = new_color
+            with open('songs\\' + self.level_name + '\\' + 'level.json', mode='w') as f:
+                json.dump(wl, f)
+            self.common_data['color'] = new_color
+
     def start(self, process):
         if self.button_invincible:
             return
         if process == 'live':
             WidgetHandler.removeWidget(self.mapping_buttons)
             WidgetHandler.removeWidget(self.tool_buttons)
+            WidgetHandler.removeWidget(self.color_dropdown)
+            WidgetHandler.removeWidget(self.confirm_color_button)
             if self.objects:
                 window = PauseMenu(self.level_background, 'start over', 'continue editing', 'back')
             else:
@@ -935,6 +1004,8 @@ class LevelEditor:
             else:
                 self.tool_buttons = self.generate_tool_buttons()
                 self.mapping_buttons = self.generate_mapping_buttons()
+                self.color_dropdown = self.generate_color_dropdown()
+                self.confirm_color_button = self.generate_confirm_color_button()
         if process == 'check':
             self.edit_window()
 
@@ -953,23 +1024,33 @@ class LevelEditor:
         self.level_music.play(-1)
         self.mapping_buttons = self.generate_mapping_buttons()
         self.tool_buttons = self.generate_tool_buttons()
+        self.color_dropdown = self.generate_color_dropdown()
+        self.confirm_color_button = self.generate_confirm_color_button()
 
     def edit_window(self):
         WidgetHandler.removeWidget(self.mapping_buttons)
         WidgetHandler.removeWidget(self.tool_buttons)
+        WidgetHandler.removeWidget(self.color_dropdown)
+        WidgetHandler.removeWidget(self.confirm_color_button)
         self.level_music.stop()
         TestMenu(self.common_data, self.objects, self.level_background, self.level_music)
         self.mapping_buttons = self.generate_mapping_buttons()
         self.tool_buttons = self.generate_tool_buttons()
+        self.color_dropdown = self.generate_color_dropdown()
+        self.confirm_color_button = self.generate_confirm_color_button()
         self.level_music.play()
 
     def tool(self, name):
         WidgetHandler.removeWidget(self.tool_buttons)
         WidgetHandler.removeWidget(self.mapping_buttons)
+        WidgetHandler.removeWidget(self.color_dropdown)
+        WidgetHandler.removeWidget(self.confirm_color_button)
         if name == 'delete level':
             if len([arg[1] for arg in os.walk('songs')][0]) == 1:
                 self.mapping_buttons = self.generate_mapping_buttons()
                 self.tool_buttons = self.generate_tool_buttons()
+                self.color_dropdown = self.generate_color_dropdown()
+                self.confirm_color_button = self.generate_confirm_color_button()
                 return
             window = PauseMenu(self.level_background, 'cancel', 'delete')
             if window.state == 'delete':
@@ -981,6 +1062,8 @@ class LevelEditor:
                     self.running = False
                     self.mapping_buttons = self.generate_mapping_buttons()
                     self.tool_buttons = self.generate_tool_buttons()
+                    self.color_dropdown = self.generate_color_dropdown()
+                    self.confirm_color_button = self.generate_confirm_color_button()
                     return
                 except Exception as e:
                     print(e)
@@ -1072,6 +1155,8 @@ class LevelEditor:
             self.common_data = json.load(f)['common']
         self.mapping_buttons = self.generate_mapping_buttons()
         self.tool_buttons = self.generate_tool_buttons()
+        self.color_dropdown = self.generate_color_dropdown()
+        self.confirm_color_button = self.generate_confirm_color_button()
         self.button_invincible = self.frame
 
 
@@ -1120,7 +1205,7 @@ class LiveMapWindow:
 
     def check_exit_event(self, events):
         for event in events:
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE or not pygame.mouse.get_focused():
                 WidgetHandler.removeWidget(self.bar)
                 pygame.mixer.music.pause()
                 wait_time = time()
@@ -1188,9 +1273,19 @@ class TestMenu:
 
     def unpack(self, objects):
         new = []
+        radius = self.common['radius']
+        max_radius = int(radius * (screen_width / 1920))
+        outline_image = pygame.transform.smoothscale(pygame.image.load('materials//circle_out.png'),
+                                                     (max_radius * 2 + 10 * (screen_width / 1920),
+                                                      max_radius * 2 + 10 * (screen_width / 1920)))
+        font = pygame.font.SysFont('roboto', max_radius * 2)
+        fail_img = pygame.transform.smoothscale(pygame.image.load('materials\\circ_fail.png'), (max_radius, max_radius))
+        suc_img = pygame.transform.smoothscale(pygame.image.load('materials\\circ_suc.png'), (max_radius, max_radius))
         for obj in objects:
             new.append(TargetCircle(x=obj['x'], y=obj['y'], start_time=obj['time'], speed=self.common['speed'],
-                                    radius=self.common['radius'], key=pygame.K_c, cheats=True))
+                                    radius=self.common['radius'], key=pygame.K_c, cheats=True,
+                                    color=self.common['color'], suc=suc_img,
+                                    fail=fail_img, outline=outline_image, font=font))
         return new
 
     def generate_bar(self):
@@ -1216,7 +1311,7 @@ class TestMenu:
 
     def check_exit_event(self, events):
         for event in events:
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE or not pygame.mouse.get_focused():
                 pygame.mixer.pause()
                 WidgetHandler.removeWidget(self.bar)
                 wait_time = time()
@@ -1265,21 +1360,23 @@ class AccountMenu:
 
     @staticmethod
     def generate_username_textbox():
+        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(35 * (screen_width / 1920)))
         textbox = TextBox(screen, int((screen_width / 2) - (400 * (screen_width / 1920))),
                           int(250 * (screen_height / 1080)),
                           int(800 * (screen_width / 1920)), int(75 * (screen_height / 1080)),
                           fontSize=int(75 * (screen_height / 1080)), textColour=(121, 78, 230),
-                          radius=int(25 * (screen_height / 1080))
+                          radius=int(25 * (screen_height / 1080)), font=font
                           )
         return textbox
 
     @staticmethod
     def generate_password_textbox():
+        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(35 * (screen_width / 1920)))
         textbox = TextBox(screen, int((screen_width / 2) - (400 * (screen_width / 1920))),
                           int(500 * (screen_height / 1080)),
                           int(800 * (screen_width / 1920)), int(75 * (screen_height / 1080)),
                           fontSize=int(75 * (screen_height / 1080)), textColour=(121, 78, 230),
-                          radius=int(25 * (screen_height / 1080))
+                          radius=int(25 * (screen_height / 1080)), font=font
                           )
         return textbox
 
@@ -1376,7 +1473,7 @@ class AccountMenu:
                                                                   int(screen_height - (398 * (screen_height / 1080)))),
                                int(25 * (screen_height / 1080)))
             pygame.draw.circle(screen, self.create_status_colour, (int(screen_width - (675 * (screen_width / 1920))),
-                                                                  int(screen_height - (292 * (screen_height / 1080)))),
+                                                                   int(screen_height - (292 * (screen_height / 1080)))),
                                int(25 * (screen_height / 1080)))
             events = pygame.event.get()
             self.check_exit_event(events)
@@ -1395,12 +1492,10 @@ class StatsMenu:
         self.image = pygame.transform.smoothscale(self.image, (screen_width, screen_height))
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
         self.buttons = self.generate_buttons()
-        self.stats = []
-        self.levels_played = ''
-        self.levels_won = ''
-        self.average_score = ''
-        self.average_rank = ''
-        self.average_accuracy = ''
+        self.stats = self.generate_stats()
+        self.stats_buttons = self.generate_stats_buttons()
+        if self.stats_buttons:
+            self.stats_buttons.disable()
 
     def generate_buttons(self):
         button_array = NewButtonArray(
@@ -1427,19 +1522,50 @@ class StatsMenu:
         )
         return button_array
 
-    def generate_stats(self):
+    def generate_stats_buttons(self):
+        if not all(self.stats):
+            return
+        width = 700 * (screen_width / 1920)
+        height = (60 * (screen_height / 1080) + 20 * (screen_height / 1080)) * len(self.stats)
+        button_array = NewButtonArray(
+            screen,
+            int(screen_width // 2 - width // 2),
+            int(150 * (screen_height / 1080)),
+            int(width),
+            int(height),
+            (1, len(self.stats)),
+            border=30 * (screen_height / 1080),
+            topBorder=0,
+            bottomBorder=0,
+            leftBorder=0,
+            rightBorder=0,
+            inactiveColours=[(77, 50, 145) for _ in range(len(self.stats))],
+            hoverColours=[(54, 35, 103) for _ in range(len(self.stats))],
+            pressedColours=[(121, 78, 230) for _ in range(len(self.stats))],
+            radii=[int(25 * (screen_height / 1080)) for _ in range(len(self.stats))],
+            fonts=[self.buttons_font for _ in range(len(self.stats))],
+            texts=self.stats,
+            invisible=True,
+            textColours=[(255, 255, 255) for _ in range(len(self.stats))],
+        )
+        return button_array
+
+    @staticmethod
+    def generate_stats():
         if account_id:
-            self.levels_played = db_connection.execute(
-                """SELECT levels_played FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
-            self.levels_won = db_connection.execute(
-                """SELECT levels_won FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
-            self.average_score = db_connection.execute(
-                """SELECT average_score FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
-            self.average_rank = db_connection.execute(
-                """SELECT average_rank FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
-            self.average_accuracy = db_connection.execute(
-                """SELECT average_accuracy FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
-        return [self.levels_played, self.levels_won, self.average_score, self.average_rank, self.average_accuracy]
+            levels_played = 'levels played: ' + str(db_connection.execute(
+                """SELECT levels_played FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
+            levels_won = 'levels won: ' + str(db_connection.execute(
+                """SELECT levels_won FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
+            average_score = 'average score: ' + str(db_connection.execute(
+                """SELECT average_score FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
+            average_rank = 'average rank: ' + str(db_connection.execute(
+                """SELECT average_rank FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
+            average_accuracy = 'average accuracy: ' + str(db_connection.execute(
+                """SELECT average_accuracy FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
+            return levels_played, levels_won, average_score, average_rank, average_accuracy
+        else:
+            return ['', '', '', '', '']
 
     def reset_stats(self):
         if account_id:
@@ -1462,7 +1588,6 @@ class StatsMenu:
             db_connection.commit()
             self.stats = self.generate_stats()
 
-
     def buttons_functions(self, name):
         if name == 'exit':
             self.running = False
@@ -1480,26 +1605,18 @@ class StatsMenu:
 
     def run(self):
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
-        small_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(25 * (screen_width / 1920)))
         text = font.render('Your stats', True, (124, 62, 249))
         text_rect = text.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080)))
-        self.stats = self.generate_stats()
-        stats_names = ['Levels played', 'Levels won', 'Average score', 'Average rank', 'Average accuracy']
         while self.running:
             screen.blit(self.image, (0, 0))
             screen.blit(text, text_rect)
-            y = int(250 * (screen_height / 1080))
-            for i in range(len(stats_names)):
-                render_stat = small_font.render(str(self.stats[i]), True, (255, 255, 255))
-                render_stat_name = small_font.render(stats_names[i], True, (255, 255, 255))
-                screen.blit(render_stat, render_stat.get_rect(center=(int((screen_width // 2)), y)))
-                screen.blit(render_stat_name, (int(50 * (screen_width / 1920)), y))
-                y += int(100 * screen_width / 1920)
             events = pygame.event.get()
             self.check_exit_event(events)
             pygame_widgets.update(events)
             pygame.display.update()
         WidgetHandler.removeWidget(self.buttons)
+        if self.stats_buttons:
+            WidgetHandler.removeWidget(self.stats_buttons)
         close_animation()
 
 
