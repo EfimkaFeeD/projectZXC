@@ -622,7 +622,7 @@ class Game:
     def check_end_game(self):
         if self.bar_percent < 0:
             WidgetHandler.removeWidget(self.score_bar)
-            GameResultMenu('loose')
+            GameResultMenu('loose', self.successful_hits, self.total_objects, self.difficult)
         elif len(self.objects) == 0:
             WidgetHandler.removeWidget(self.score_bar)
             GameResultMenu('win', self.successful_hits, self.total_objects, self.difficult)
@@ -1523,7 +1523,7 @@ class StatsMenu:
         return button_array
 
     def generate_stats_buttons(self):
-        if not all(self.stats):
+        if not self.stats:
             return
         width = 700 * (screen_width / 1920)
         height = (60 * (screen_height / 1080) + 20 * (screen_height / 1080)) * len(self.stats)
@@ -1557,15 +1557,13 @@ class StatsMenu:
                 """SELECT levels_played FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
             levels_won = 'levels won: ' + str(db_connection.execute(
                 """SELECT levels_won FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
-            average_score = 'average score: ' + str(db_connection.execute(
-                """SELECT average_score FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
+            average_score = 'average score: ' + str(round(db_connection.execute(
+                """SELECT average_score FROM main WHERE id = ?""", (account_id,)).fetchone()[0], 2))
             average_rank = 'average rank: ' + str(db_connection.execute(
                 """SELECT average_rank FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
-            average_accuracy = 'average accuracy: ' + str(db_connection.execute(
-                """SELECT average_accuracy FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
+            average_accuracy = 'average accuracy: ' + str(round(db_connection.execute(
+                """SELECT average_accuracy FROM main WHERE id = ?""", (account_id,)).fetchone()[0], 2))
             return levels_played, levels_won, average_score, average_rank, average_accuracy
-        else:
-            return ['', '', '', '', '']
 
     def reset_stats(self):
         if account_id:
@@ -1593,10 +1591,13 @@ class StatsMenu:
             self.running = False
         elif name == 'reset':
             WidgetHandler.removeWidget(self.buttons)
+            WidgetHandler.removeWidget(self.stats_buttons)
             window = PauseMenu(self.image, 'cancel', 'confirm', title='Reset your stats?')
             if window.state == 'confirm':
                 self.reset_stats()
             self.buttons = self.generate_buttons()
+            self.stats_buttons = self.generate_stats_buttons()
+            self.stats_buttons.disable()
 
     def check_exit_event(self, events):
         for event in events:
@@ -1690,13 +1691,13 @@ class PauseMenu:
 class GameResultMenu:
     def __init__(self, state, suc=0, total=0, diff=''):
         self.state = state
+        if total == 0:
+            self.accuracy = 100
+        else:
+            self.accuracy = round(suc / total * 100, 2)
         if state == 'win':
             self.bg = pygame.transform.smoothscale(pygame.image.load('materials//win.jpg'),
                                                    (screen_width, screen_height))
-            if total == 0:
-                self.accuracy = 100
-            else:
-                self.accuracy = round(suc / total * 100, 2)
         else:
             self.bg = pygame.transform.smoothscale(pygame.image.load('materials//loose.jpg'),
                                                    (screen_width, screen_height))
@@ -1749,7 +1750,8 @@ class GameResultMenu:
         self.current_score += self.total
         self.current_successful += self.successful
         self.current_average_score = self.current_score / self.current_levels_played
-        self.current_average_accuracy = self.accuracy / self.current_levels_played
+        self.current_accuracy += self.accuracy
+        self.current_average_accuracy = self.current_accuracy / self.current_levels_played
         if self.current_average_accuracy == 100:
             self.current_average_rank = 'SS'
         elif self.current_average_accuracy >= 90:
