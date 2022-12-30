@@ -2,6 +2,7 @@ import os
 import pygame
 import pygame_widgets
 import json
+import sqlite3
 from tkinter import filedialog
 from screeninfo import get_monitors
 from pygame_widgets.button import ButtonArray, Button
@@ -26,6 +27,11 @@ screen_height = pygame.display.Info().current_h
 max_w, max_h = screen_width, screen_height
 screen = pygame.display.set_mode((screen_width, screen_height))
 clock = pygame.time.Clock()
+
+# Подключение к базе данных
+db_connection = sqlite3.connect('zxc.db')
+
+account_id = 0
 
 
 # Переопределение класса из библиотеки для добавления возможности убирания заднего фона
@@ -88,6 +94,8 @@ class Menu:
         self.buttons_scroll = 0
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
         self.buttons_font_color = (255, 255, 255)
+        self.account_button = self.generate_account_button()
+        self.stats_button = self.generate_stats_button()
         self.buttonArray = self.generate_song_button_array()
         self.FPS_dropdown_menu = self.generate_fps_dropdown_menu()
         self.difficulty_dropdown_menu = self.generate_difficulty_dropdown_menu()
@@ -101,6 +109,44 @@ class Menu:
         self.volume_slider = self.generate_volume_slider()
         self.mute_button = self.generate_mute_button()
         self.start_animation()
+
+    def generate_account_button(self):
+        account_button = Button(
+            screen,
+            screen_width - int(475 * (screen_width / 1920)),
+            screen_height - int(75 * (screen_height / 1080)),
+            int(200 * (screen_width / 1920)),
+            int(50 * (screen_height / 1080)),
+            text='login',
+            radius=int(25 * (screen_height / 1080)),
+            textColour=self.buttons_font_color,
+            inactiveColour=(77, 50, 145),
+            hoverColour=(54, 35, 103),
+            pressedColour=(121, 78, 230),
+            font=self.buttons_font,
+            border=30 * (screen_height / 1080),
+            onClick=lambda: self.account()
+        )
+        return account_button
+
+    def generate_stats_button(self):
+        stats_button = Button(
+            screen,
+            screen_width - int(725 * (screen_width / 1920)),
+            screen_height - int(75 * (screen_height / 1080)),
+            int(200 * (screen_width / 1920)),
+            int(50 * (screen_height / 1080)),
+            text='stats',
+            radius=int(25 * (screen_height / 1080)),
+            textColour=self.buttons_font_color,
+            inactiveColour=(77, 50, 145),
+            hoverColour=(54, 35, 103),
+            pressedColour=(121, 78, 230),
+            font=self.buttons_font,
+            border=30 * (screen_height / 1080),
+            onClick=lambda: self.stats()
+        )
+        return stats_button
 
     def generate_menu_songs_dropdown_menu(self):
         menu_songs_dropdown_menu = Dropdown(
@@ -277,11 +323,13 @@ class Menu:
                 WidgetHandler.removeWidget(self.volume_slider)
                 WidgetHandler.removeWidget(self.mute_button)
                 WidgetHandler.removeWidget(self.menu_songs_dropdown_menu)
+                WidgetHandler.removeWidget(self.account_button)
+                WidgetHandler.removeWidget(self.stats_button)
                 window = PauseMenu(self.menu_image, 'return', 'exit', music=['materials//return.mp3', None],
                                    title='Exit?')
                 if window.state == 'exit':
-                    self.running = False
-                    running = False
+                    close_animation()
+                    quit()
                 else:
                     self.buttonArray = self.generate_song_button_array()
                     self.FPS_dropdown_menu = self.generate_fps_dropdown_menu()
@@ -293,6 +341,8 @@ class Menu:
                     self.volume_slider = self.generate_volume_slider()
                     self.mute_button = self.generate_mute_button()
                     self.menu_songs_dropdown_menu = self.generate_menu_songs_dropdown_menu()
+                    self.account_button = self.generate_account_button()
+                    self.stats_button = self.generate_stats_button()
 
     def start_waiting(self):
         self.wait_time = 1 / fps
@@ -330,6 +380,8 @@ class Menu:
         WidgetHandler.removeWidget(self.volume_slider)
         WidgetHandler.removeWidget(self.mute_button)
         WidgetHandler.removeWidget(self.menu_songs_dropdown_menu)
+        WidgetHandler.removeWidget(self.account_button)
+        WidgetHandler.removeWidget(self.stats_button)
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
         self.buttonArray = self.generate_song_button_array()
         self.FPS_dropdown_menu = self.generate_fps_dropdown_menu()
@@ -341,6 +393,8 @@ class Menu:
         self.volume_slider = self.generate_volume_slider()
         self.mute_button = self.generate_mute_button()
         self.menu_songs_dropdown_menu = self.generate_menu_songs_dropdown_menu()
+        self.account_button = self.generate_account_button()
+        self.stats_button = self.generate_stats_button()
 
     # Создание кнопки подтверждения настроек
     def generate_confirm_button(self):
@@ -382,6 +436,14 @@ class Menu:
                 self.menu_song.set_volume(0)
             else:
                 self.menu_song.set_volume(self.volume_level)
+
+    def account(self):
+        self.script = 'login'
+        self.running = False
+
+    def stats(self):
+        self.script = 'stats'
+        self.running = False
 
     # Кнопка для открытия редактора нового уровня
     def generate_add_song_button(self):
@@ -430,6 +492,8 @@ class Menu:
             WidgetHandler.removeWidget(self.volume_slider)
             WidgetHandler.removeWidget(self.mute_button)
             WidgetHandler.removeWidget(self.menu_songs_dropdown_menu)
+            WidgetHandler.removeWidget(self.account_button)
+            WidgetHandler.removeWidget(self.stats_button)
 
     # Анимация перехода на уровень
     def start_animation(self):
@@ -597,11 +661,11 @@ class Game:
     def generate_scorebar(self):
         score_bar = ProgressBar(screen, int(30 * (screen_width / 1920)), int(10 * (screen_height / 1080)),
                                 int(500 * (screen_width / 1920)), int(35 * (screen_height / 1080)),
-                                self.update_bar_precent, curved=True, completedColour=(110, 0, 238),
+                                self.update_bar_percent, curved=True, completedColour=(110, 0, 238),
                                 incompletedColour=(187, 134, 252))
         return score_bar
 
-    def update_bar_precent(self):
+    def update_bar_percent(self):
         if self.bar_percent >= self.bar_speed:
             self.bar_percent -= self.bar_speed
         return self.bar_percent
@@ -678,11 +742,11 @@ class TargetCircle:
     def collision(self, events):
         if time() - self.lifetime > self.end_successful_time or self.cheats:
             return
-        uncorr_keys = [pygame.K_x, pygame.K_c, pygame.K_z]
-        uncorr_keys.remove(self.key)
+        uncorrected_keys = [pygame.K_x, pygame.K_c, pygame.K_z]
+        uncorrected_keys.remove(self.key)
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == self.key:
-                for el in uncorr_keys:
+                for el in uncorrected_keys:
                     if pygame.key.get_pressed()[el]:
                         return
                 if self.hitbox.collidepoint(pygame.mouse.get_pos()):
@@ -773,8 +837,8 @@ class LevelEditor:
                 self.button_invincible = False
             self.blit_bg()
             events = pygame.event.get()
-            self.check_exit_event(events)
             pygame_widgets.update(events)
+            self.check_exit_event(events)
             pygame.display.update()
             self.frame += 1
         self.level_music.stop()
@@ -1022,12 +1086,12 @@ class LiveMapWindow:
             self.old_objects = objects
             self.start_time = objects[-1]['time'] + common['speed']
             pygame.mixer.music.play(start=self.start_time)
-            self.bar_precent = self.start_time / self.music.get_length()
+            self.bar_percent = self.start_time / self.music.get_length()
         else:
             self.old_objects = []
             self.start_time = time()
             pygame.mixer.music.play()
-            self.bar_precent = -self.bar_speed
+            self.bar_percent = -self.bar_speed
         self.objects = []
         self.running = True
         self.saving = True
@@ -1081,15 +1145,15 @@ class LiveMapWindow:
     def generate_score_bar(self):
         score_bar = ProgressBar(screen, int(30 * (screen_width / 1920)), int(10 * (screen_height / 1080)),
                                 int(1860 * (screen_width / 1920)), int(35 * (screen_height / 1080)),
-                                self.update_bar_precent, curved=True, completedColour=(110, 0, 238),
+                                self.update_bar_percent, curved=True, completedColour=(110, 0, 238),
                                 incompletedColour=(187, 134, 252))
         return score_bar
 
-    def update_bar_precent(self):
-        self.bar_precent += self.bar_speed
-        if self.bar_precent >= 1:
+    def update_bar_percent(self):
+        self.bar_percent += self.bar_speed
+        if self.bar_percent >= 1:
             self.running = False
-        return self.bar_precent
+        return self.bar_percent
 
 
 class MappingCircle:
@@ -1115,7 +1179,7 @@ class TestMenu:
         if not objects:
             return
         self.bar_speed = 1 / ((objects[-1]['time'] + common['speed'] + 3) * fps)
-        self.bar_precent = -self.bar_speed
+        self.bar_percent = -self.bar_speed
         self.bar = self.generate_bar()
         self.targets = self.unpack(objects)
         self.start_time = None
@@ -1132,15 +1196,15 @@ class TestMenu:
     def generate_bar(self):
         score_bar = ProgressBar(screen, int(30 * (screen_width / 1920)), int(10 * (screen_height / 1080)),
                                 int(1860 * (screen_width / 1920)), int(35 * (screen_height / 1080)),
-                                self.update_bar_precent, curved=True, completedColour=(110, 0, 238),
+                                self.update_bar_percent, curved=True, completedColour=(110, 0, 238),
                                 incompletedColour=(187, 134, 252))
         return score_bar
 
-    def update_bar_precent(self):
-        self.bar_precent += self.bar_speed
-        if self.bar_precent >= 1:
+    def update_bar_percent(self):
+        self.bar_percent += self.bar_speed
+        if self.bar_percent >= 1:
             self.running = False
-        return self.bar_precent
+        return self.bar_percent
 
     def object_events(self, events):
         for obj in self.targets:
@@ -1181,6 +1245,262 @@ class TestMenu:
             clock.tick(fps)
         WidgetHandler.removeWidget(self.bar)
         self.music.stop()
+
+
+class AccountMenu:
+    def __init__(self):
+        self.running = True
+        self.image = pygame.image.load('materials//menu_bg.jpg')
+        self.image = pygame.transform.smoothscale(self.image, (screen_width, screen_height))
+        self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
+        self.buttons = self.generate_account_buttons()
+        self.username_textbox = self.generate_username_textbox()
+        self.password_textbox = self.generate_password_textbox()
+        self.username_text, self.username_text_rect = self.generate_username_text()
+        self.password_text, self.password_text_rect = self.generate_password_text()
+        self.login_status_colour = self.generate_status_colour(0)
+        self.create_status_colour = self.generate_status_colour(0)
+        self.status_circle = ((screen_width - (700 * (screen_width // 1920))),
+                              (screen_height - (420 * (screen_height // 1080))), (50 * (screen_height // 1080)))
+
+    @staticmethod
+    def generate_username_textbox():
+        textbox = TextBox(screen, int((screen_width / 2) - (400 * (screen_width / 1920))),
+                          int(250 * (screen_height / 1080)),
+                          int(800 * (screen_width / 1920)), int(75 * (screen_height / 1080)),
+                          fontSize=int(75 * (screen_height / 1080)), textColour=(121, 78, 230),
+                          radius=int(25 * (screen_height / 1080))
+                          )
+        return textbox
+
+    @staticmethod
+    def generate_password_textbox():
+        textbox = TextBox(screen, int((screen_width / 2) - (400 * (screen_width / 1920))),
+                          int(500 * (screen_height / 1080)),
+                          int(800 * (screen_width / 1920)), int(75 * (screen_height / 1080)),
+                          fontSize=int(75 * (screen_height / 1080)), textColour=(121, 78, 230),
+                          radius=int(25 * (screen_height / 1080))
+                          )
+        return textbox
+
+    def generate_account_buttons(self):
+        width = 500 * (screen_width / 1920)
+        height = (60 * (screen_height / 1080) + 30 * (screen_height / 1080)) * 3
+        button_array = NewButtonArray(
+            screen,
+            int(screen_width // 2 - width // 2),
+            int(650 * (screen_height / 1080)),
+            int(width),
+            int(height),
+            (1, 3),
+            border=30 * (screen_height / 1080),
+            topBorder=0,
+            bottomBorder=0,
+            leftBorder=0,
+            rightBorder=0,
+            inactiveColours=[(77, 50, 145) for _ in range(3)],
+            hoverColours=[(54, 35, 103) for _ in range(3)],
+            pressedColours=[(121, 78, 230) for _ in range(3)],
+            radii=[int(25 * (screen_height / 1080)) for _ in range(3)],
+            fonts=[self.buttons_font for _ in range(3)],
+            texts=['Login', 'Create', 'Return'],
+            invisible=True,
+            textColours=[(255, 255, 255) for _ in range(3)],
+            onClicks=[lambda x: self.login(x) for _ in range(3)],
+            onClickParams=[['login'], ['create'], ['return']]
+        )
+        return button_array
+
+    @staticmethod
+    def generate_username_text():
+        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(40 * (screen_width / 1920)))
+        text = font.render('Username', True, (124, 62, 249))
+        text_rect = text.get_rect(center=(screen_width // 2, 200 * (screen_height / 1080)))
+        return text, text_rect
+
+    @staticmethod
+    def generate_password_text():
+        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(40 * (screen_width / 1920)))
+        text = font.render('Password', True, (124, 62, 249))
+        text_rect = text.get_rect(center=(screen_width // 2, 450 * (screen_height / 1080)))
+        return text, text_rect
+
+    @staticmethod
+    def generate_status_colour(arg):
+        colour = (150, 150, 150)
+        if arg == 1:
+            colour = (79, 239, 81)
+        elif arg == 2:
+            colour = (176, 0, 32)
+        return colour
+
+    def login(self, arg):
+        global account_id
+        username = self.username_textbox.getText()
+        password = self.password_textbox.getText()
+        if arg == 'login':
+            if db_connection.cursor().execute(
+                    """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone():
+                account_id = db_connection.cursor().execute(
+                    """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone()[0]
+                self.login_status_colour = self.generate_status_colour(1)
+            else:
+                self.login_status_colour = self.generate_status_colour(2)
+        elif arg == 'create':
+            if not(db_connection.cursor().execute(
+                    """SELECT id FROM main WHERE username = ?""", (username,)).fetchone()):
+                db_connection.cursor().execute(
+                    """INSERT INTO main(username, password) VALUES(?, ?)""", (username, password))
+                db_connection.commit()
+                self.create_status_colour = self.generate_status_colour(1)
+            else:
+                self.create_status_colour = self.generate_status_colour(2)
+        elif arg == 'return':
+            self.running = False
+
+    def check_exit_event(self, events):
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.running = False
+
+    def run(self):
+        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
+        text = font.render('Login or create your account', True, (124, 62, 249))
+        text_rect = text.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080)))
+        while self.running:
+            screen.blit(self.image, (0, 0))
+            screen.blit(text, text_rect)
+            screen.blit(self.username_text, self.username_text_rect)
+            screen.blit(self.password_text, self.password_text_rect)
+            pygame.draw.circle(screen, self.login_status_colour, (int(screen_width - (675 * (screen_width / 1920))),
+                                                                  int(screen_height - (398 * (screen_height / 1080)))),
+                               int(25 * (screen_height / 1080)))
+            pygame.draw.circle(screen, self.create_status_colour, (int(screen_width - (675 * (screen_width / 1920))),
+                                                                  int(screen_height - (292 * (screen_height / 1080)))),
+                               int(25 * (screen_height / 1080)))
+            events = pygame.event.get()
+            self.check_exit_event(events)
+            pygame_widgets.update(events)
+            pygame.display.update()
+        WidgetHandler.removeWidget(self.buttons)
+        WidgetHandler.removeWidget(self.username_textbox)
+        WidgetHandler.removeWidget(self.password_textbox)
+        close_animation()
+
+
+class StatsMenu:
+    def __init__(self):
+        self.running = True
+        self.image = pygame.image.load('materials//menu_bg.jpg')
+        self.image = pygame.transform.smoothscale(self.image, (screen_width, screen_height))
+        self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
+        self.buttons = self.generate_buttons()
+        self.stats = []
+        self.levels_played = ''
+        self.levels_won = ''
+        self.average_score = ''
+        self.average_rank = ''
+        self.average_accuracy = ''
+
+    def generate_buttons(self):
+        button_array = NewButtonArray(
+            screen,
+            int((screen_width // 2) - (350 * (screen_width / 1920))),
+            int(screen_height - (100 * (screen_height / 1080))),
+            int(350 * (screen_width / 1920)) * 2, int(75 * (screen_height / 1080)),
+            (2, 1),
+            border=30 * (screen_height / 1080),
+            topBorder=0,
+            bottomBorder=0,
+            leftBorder=0,
+            rightBorder=0,
+            inactiveColours=[(77, 50, 145) for _ in range(2)],
+            hoverColours=[(54, 35, 103) for _ in range(2)],
+            pressedColours=[(121, 78, 230) for _ in range(2)],
+            radii=[int(25 * (screen_height / 1080)) for _ in range(2)],
+            fonts=[self.buttons_font for _ in range(2)],
+            texts=['reset', 'exit'],
+            invisible=True,
+            textColours=[(255, 255, 255) for _ in range(2)],
+            onClicks=[lambda x: self.buttons_functions(x) for _ in range(2)],
+            onClickParams=[['reset'], ['exit']]
+        )
+        return button_array
+
+    def generate_stats(self):
+        if account_id:
+            self.levels_played = db_connection.execute(
+                """SELECT levels_played FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
+            self.levels_won = db_connection.execute(
+                """SELECT levels_won FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
+            self.average_score = db_connection.execute(
+                """SELECT average_score FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
+            self.average_rank = db_connection.execute(
+                """SELECT average_rank FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
+            self.average_accuracy = db_connection.execute(
+                """SELECT average_accuracy FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
+        return [self.levels_played, self.levels_won, self.average_score, self.average_rank, self.average_accuracy]
+
+    def reset_stats(self):
+        if account_id:
+            db_connection.execute("""UPDATE main SET levels_played = ? WHERE id = ?""",
+                                  (0, account_id))
+            db_connection.execute("""UPDATE main SET levels_won = ? WHERE id = ?""",
+                                  (0, account_id))
+            db_connection.execute("""UPDATE main SET score = ? WHERE id = ?""",
+                                  (0, account_id))
+            db_connection.execute("""UPDATE main SET average_score = ? WHERE id = ?""",
+                                  (0.0, account_id))
+            db_connection.execute("""UPDATE main SET successful = ? WHERE id = ?""",
+                                  (0, account_id))
+            db_connection.execute("""UPDATE main SET average_accuracy = ? WHERE id = ?""",
+                                  (0.0, account_id))
+            db_connection.execute("""UPDATE main SET average_rank = ? WHERE id = ?""",
+                                  ('N', account_id))
+            db_connection.execute("""UPDATE main SET accuracy = ? WHERE id = ?""",
+                                  (0.0, account_id))
+            db_connection.commit()
+            self.stats = self.generate_stats()
+
+
+    def buttons_functions(self, name):
+        if name == 'exit':
+            self.running = False
+        elif name == 'reset':
+            WidgetHandler.removeWidget(self.buttons)
+            window = PauseMenu(self.image, 'cancel', 'confirm', title='Reset your stats?')
+            if window.state == 'confirm':
+                self.reset_stats()
+            self.buttons = self.generate_buttons()
+
+    def check_exit_event(self, events):
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.running = False
+
+    def run(self):
+        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
+        small_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(25 * (screen_width / 1920)))
+        text = font.render('Your stats', True, (124, 62, 249))
+        text_rect = text.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080)))
+        self.stats = self.generate_stats()
+        stats_names = ['Levels played', 'Levels won', 'Average score', 'Average rank', 'Average accuracy']
+        while self.running:
+            screen.blit(self.image, (0, 0))
+            screen.blit(text, text_rect)
+            y = int(250 * (screen_height / 1080))
+            for i in range(len(stats_names)):
+                render_stat = small_font.render(str(self.stats[i]), True, (255, 255, 255))
+                render_stat_name = small_font.render(stats_names[i], True, (255, 255, 255))
+                screen.blit(render_stat, render_stat.get_rect(center=(int((screen_width // 2)), y)))
+                screen.blit(render_stat_name, (int(50 * (screen_width / 1920)), y))
+                y += int(100 * screen_width / 1920)
+            events = pygame.event.get()
+            self.check_exit_event(events)
+            pygame_widgets.update(events)
+            pygame.display.update()
+        WidgetHandler.removeWidget(self.buttons)
+        close_animation()
 
 
 class PauseMenu:
@@ -1266,6 +1586,23 @@ class GameResultMenu:
         self.successful = suc
         self.total = total
         self.difficult = diff
+        if account_id:
+            self.current_score = db_connection.cursor().execute(
+                """SELECT score FROM main WHERE id = ?""", (account_id, )).fetchone()[0]
+            self.current_successful = db_connection.cursor().execute(
+                """SELECT successful FROM main WHERE id = ?""", (account_id, )).fetchone()[0]
+            self.current_levels_played = db_connection.cursor().execute(
+                """SELECT levels_played FROM main WHERE id = ?""", (account_id, )).fetchone()[0]
+            self.current_levels_won = db_connection.cursor().execute(
+                """SELECT levels_won FROM main WHERE id = ?""", (account_id, )).fetchone()[0]
+            self.current_average_score = db_connection.cursor().execute(
+                """SELECT average_score FROM main WHERE id = ?""", (account_id, )).fetchone()[0]
+            self.current_average_rank = db_connection.cursor().execute(
+                """SELECT average_rank FROM main WHERE id = ?""", (account_id, )).fetchone()[0]
+            self.current_average_accuracy = db_connection.cursor().execute(
+                """SELECT average_accuracy FROM main WHERE id = ?""", (account_id, )).fetchone()[0]
+            self.current_accuracy = db_connection.cursor().execute(
+                """SELECT accuracy FROM main WHERE id = ?""", (account_id, )).fetchone()[0]
         self.running = True
         self.run()
 
@@ -1287,9 +1624,49 @@ class GameResultMenu:
             screen.blit(text, text.get_rect(center=(screen_width // 2, 400 * (screen_height / 1080))))
             text = small_font.render(f'difficult - {self.difficult}', True, (124, 62, 249))
             screen.blit(text, text.get_rect(center=(screen_width // 2, 500 * (screen_height / 1080))))
+            if account_id:
+                self.current_levels_won += 1
+
+    def update_database(self):
+        self.current_levels_played += 1
+        self.current_score += self.total
+        self.current_successful += self.successful
+        self.current_average_score = self.current_score / self.current_levels_played
+        self.current_average_accuracy = self.accuracy / self.current_levels_played
+        if self.current_average_accuracy == 100:
+            self.current_average_rank = 'SS'
+        elif self.current_average_accuracy >= 90:
+            self.current_average_rank = 'S'
+        elif self.current_average_accuracy >= 80:
+            self.current_average_rank = 'A'
+        elif self.current_average_accuracy >= 70:
+            self.current_average_rank = 'B'
+        elif self.current_average_accuracy >= 60:
+            self.current_average_rank = 'C'
+        elif self.current_average_accuracy < 60:
+            self.current_average_rank = 'D'
+        db_connection.execute("""UPDATE main SET levels_played = ? WHERE id = ?""",
+                              (self.current_levels_played, account_id))
+        db_connection.execute("""UPDATE main SET levels_won = ? WHERE id = ?""",
+                              (self.current_levels_won, account_id))
+        db_connection.execute("""UPDATE main SET score = ? WHERE id = ?""",
+                              (self.current_score, account_id))
+        db_connection.execute("""UPDATE main SET average_score = ? WHERE id = ?""",
+                              (self.current_average_score, account_id))
+        db_connection.execute("""UPDATE main SET successful = ? WHERE id = ?""",
+                              (self.current_successful, account_id))
+        db_connection.execute("""UPDATE main SET average_accuracy = ? WHERE id = ?""",
+                              (self.current_average_accuracy, account_id))
+        db_connection.execute("""UPDATE main SET average_rank = ? WHERE id = ?""",
+                              (self.current_average_rank, account_id))
+        db_connection.execute("""UPDATE main SET accuracy = ? WHERE id = ?""",
+                              (self.accuracy, account_id))
+        db_connection.commit()
 
     def run(self):
         self.blit()
+        if account_id:
+            self.update_database()
         pygame.display.update()
         while self.running:
             for e in pygame.event.get():
@@ -1385,6 +1762,12 @@ def main():
         elif script == 'editor':
             editor = LevelEditor(menu.level_name)
             editor.run()
+        elif script == 'login':
+            login = AccountMenu()
+            login.run()
+        elif script == 'stats':
+            stats = StatsMenu()
+            stats.run()
 
 
 if __name__ == '__main__':
