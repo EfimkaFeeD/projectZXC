@@ -521,6 +521,12 @@ class Game:
         self.difficult = difficult
         self.circle_key_step = -1
         self.objects = self.create_object_list()
+        if not self.objects:
+            self.level_music.play()
+            EmptyLevelWindow()
+            self.level_music.stop()
+            self.running = False
+            return
         self.start_animation()
         self.total_objects = 0
         self.start_time = None
@@ -632,6 +638,8 @@ class Game:
 
     # Цикл для вывода на экран
     def run(self):
+        if not self.running:
+            return
         self.level_music.play()
         self.start_time = time()
         while self.running:
@@ -780,10 +788,9 @@ class TargetCircle:
 
 # Класс редактора для создания уровней
 class LevelEditor:
-    default_bg = pygame.transform.smoothscale(pygame.image.load('materials//redactor_default.jpg'),
-                                              (screen_width, screen_height))
-
     def __init__(self, level_name=None):
+        self.default_bg = pygame.transform.smoothscale(pygame.image.load('materials//redactor_default.jpg'),
+                                                       (screen_width, screen_height))
         self.running = True
         self.button_invincible = False
         self.frame = 0
@@ -824,7 +831,8 @@ class LevelEditor:
         old_bytes = open('materials//redactor_default.jpg', mode='rb').read()
         open(f'songs//{name}//bg.jpg', mode='wb').write(old_bytes)
         open(f'songs//{name}//level.json', mode='w').write('{"common": {"radius":  50, "speed":  0.9, "delta_up":  0.2,'
-                                                           ' "delta_down":  0.3, "bar_speed":  0.0009, color: "black"},'
+                                                           ' "delta_down":  0.3, "bar_speed":  0.0009,'
+                                                           ' "color": "black"},'
                                                            ' "circles": []}')
         old_bytes = open(self.directory, mode='rb').read()
         open(f'songs//{name}//song.mp3', mode='wb').write(old_bytes)
@@ -1345,7 +1353,8 @@ class TestMenu:
 class AccountMenu:
     def __init__(self):
         self.running = True
-        self.image = pygame.image.load('materials//menu_bg.jpg')
+        self.image = pygame.transform.smoothscale(pygame.image.load('materials//menu_bg.jpg'),
+                                                  (screen_width, screen_height))
         self.image = pygame.transform.smoothscale(self.image, (screen_width, screen_height))
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
         self.buttons = self.generate_account_buttons()
@@ -1488,7 +1497,8 @@ class AccountMenu:
 class StatsMenu:
     def __init__(self):
         self.running = True
-        self.image = pygame.image.load('materials//menu_bg.jpg')
+        self.image = pygame.transform.smoothscale(pygame.image.load('materials//menu_bg.jpg'),
+                                                  (screen_width, screen_height))
         self.image = pygame.transform.smoothscale(self.image, (screen_width, screen_height))
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
         self.buttons = self.generate_buttons()
@@ -1553,6 +1563,8 @@ class StatsMenu:
     @staticmethod
     def generate_stats():
         if account_id:
+            name = 'nickname: ' + db_connection.execute(
+                """SELECT username FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
             levels_played = 'levels played: ' + str(db_connection.execute(
                 """SELECT levels_played FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
             levels_won = 'levels won: ' + str(db_connection.execute(
@@ -1563,7 +1575,7 @@ class StatsMenu:
                 """SELECT average_rank FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
             average_accuracy = 'average accuracy: ' + str(round(db_connection.execute(
                 """SELECT average_accuracy FROM main WHERE id = ?""", (account_id,)).fetchone()[0], 2))
-            return levels_played, levels_won, average_score, average_rank, average_accuracy
+            return name, levels_played, levels_won, average_score, average_rank, average_accuracy
 
     def reset_stats(self):
         if account_id:
@@ -1791,6 +1803,27 @@ class GameResultMenu:
             for e in pygame.event.get():
                 if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
                     self.running = False
+
+
+class EmptyLevelWindow:
+    def __init__(self):
+        self.bg = pygame.transform.smoothscale(pygame.image.load('materials//empty.jpg'), (screen_width, screen_height))
+        self.font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
+        self.running = True
+        self.run()
+
+    def run(self):
+        self.blit()
+        pygame.display.update()
+        while self.running:
+            for e in pygame.event.get():
+                if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
+                    self.running = False
+
+    def blit(self):
+        screen.blit(self.bg, (0, 0))
+        render = self.font.render('This is empty level', True, (124, 62, 249))
+        screen.blit(render, render.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080))))
 
 
 class DialogWindow:
