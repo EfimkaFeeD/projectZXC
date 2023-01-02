@@ -11,6 +11,7 @@ from pygame_widgets.widget import WidgetHandler
 from pygame_widgets.slider import Slider
 from pygame_widgets.progressbar import ProgressBar
 from pygame_widgets.textbox import TextBox
+from pygame_widgets.toggle import Toggle
 from random import choice
 from time import time
 
@@ -30,8 +31,17 @@ clock = pygame.time.Clock()
 
 # Подключение к базе данных
 db_connection = sqlite3.connect('zxc.db')
-
 account_id = 0
+
+# Статистика для стандартного пользователя
+anonymous_levels_played = 0
+anonymous_levels_won = 0
+anonymous_score = 0.0
+anonymous_average_score = 0
+anonymous_average_rank = 'N'
+anonymous_successful = 0
+anonymous_average_accuracy = 0.0
+anonymous_accuracy = 0.0
 
 
 # Переопределение класса из библиотеки для добавления возможности убирания заднего фона
@@ -110,6 +120,7 @@ class Menu:
         self.mute_button = self.generate_mute_button()
         self.start_animation()
 
+    # Создание кнопки для управления аккаунтом
     def generate_account_button(self):
         account_button = Button(
             screen,
@@ -117,7 +128,7 @@ class Menu:
             screen_height - int(75 * (screen_height / 1080)),
             int(200 * (screen_width / 1920)),
             int(50 * (screen_height / 1080)),
-            text='login',
+            text='account',
             radius=int(25 * (screen_height / 1080)),
             textColour=self.buttons_font_color,
             inactiveColour=(77, 50, 145),
@@ -129,6 +140,7 @@ class Menu:
         )
         return account_button
 
+    # Создание кнопки для просмотра статистики
     def generate_stats_button(self):
         stats_button = Button(
             screen,
@@ -148,6 +160,7 @@ class Menu:
         )
         return stats_button
 
+    # Создания списка музыки для меню
     def generate_menu_songs_dropdown_menu(self):
         menu_songs_dropdown_menu = Dropdown(
             screen, int(275 * (screen_width / 1920)), int(15 * (screen_height / 1080)),
@@ -437,10 +450,12 @@ class Menu:
             else:
                 self.menu_song.set_volume(self.volume_level)
 
+    # Переход на экран аккаунта при нажатии кнопки
     def account(self):
-        self.script = 'login'
+        self.script = 'account'
         self.running = False
 
+    # Переход на экран статистики при нажатии кнопки
     def stats(self):
         self.script = 'stats'
         self.running = False
@@ -456,6 +471,7 @@ class Menu:
         add_button = button
         return add_button
 
+    # Переход на экран редактора уровня
     def run_editor(self):
         self.script = 'editor'
         self.running = False
@@ -552,6 +568,7 @@ class Game:
     def blit_background(self):
         screen.blit(self.level_background, (0, 0))
 
+    # Вывод точности попаданий справа от scorebar
     def blit_accuracy(self):
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(20 * (screen_width / 1920)))
         if self.total_objects == 0:
@@ -625,6 +642,7 @@ class Game:
                     self.start_time += time() - wait_time
                     self.score_bar = self.generate_scorebar()
 
+    # Проверка на завершение игры
     def check_end_game(self):
         if self.bar_percent < 0:
             WidgetHandler.removeWidget(self.score_bar)
@@ -770,9 +788,11 @@ class TargetCircle:
                     self.hit_time = time() - self.lifetime
                     self.death = 1
 
+    # При переходе в меню паузы
     def pause(self):
         self.wait_time = time()
 
+    # При выходе из меню паузы
     def unpause(self):
         if self.lifetime:
             self.lifetime += time() - self.wait_time
@@ -837,6 +857,7 @@ class LevelEditor:
         old_bytes = open(self.directory, mode='rb').read()
         open(f'songs//{name}//song.mp3', mode='wb').write(old_bytes)
 
+    # Загрузка музыки, заднего фона, json уровня
     def load_materials(self):
         level_music = pygame.mixer.Sound('songs\\' + self.level_name + '\\' + 'song.mp3')
         level_background = pygame.transform.smoothscale(
@@ -849,6 +870,7 @@ class LevelEditor:
                 objects.append({'x': data['x'], 'y': data['y'], 'time': data['time']})
         return level_music, level_background, objects, common_data
 
+    # Цикл для вывода на экран
     def run(self):
         if not self.level_name:
             return
@@ -868,12 +890,14 @@ class LevelEditor:
         WidgetHandler.removeWidget(self.color_dropdown)
         WidgetHandler.removeWidget(self.confirm_color_button)
 
+    # Вывод заднего фона и приветствия
     def blit_bg(self):
         screen.blit(self.level_background, (0, 0))
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
         text = font.render('Welcome to LevelEditor!', True, (255, 255, 255))
         screen.blit(text, text.get_rect(center=(screen_width // 2, 900 * (screen_height / 1080))))
 
+    # Проверка на выход из редактора в меню
     def check_exit_event(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
@@ -1350,6 +1374,7 @@ class TestMenu:
         self.music.stop()
 
 
+# Класс для управления аккаунтом
 class AccountMenu:
     def __init__(self):
         self.running = True
@@ -1360,16 +1385,19 @@ class AccountMenu:
         self.buttons = self.generate_account_buttons()
         self.username_textbox = self.generate_username_textbox()
         self.password_textbox = self.generate_password_textbox()
+        self.stats_toggle = self.generate_stats_toggle()
         self.username_text, self.username_text_rect = self.generate_username_text()
         self.password_text, self.password_text_rect = self.generate_password_text()
         self.login_status_colour = self.generate_status_colour(0)
         self.create_status_colour = self.generate_status_colour(0)
+        self.delete_status_colour = self.generate_status_colour(0)
         self.status_circle = ((screen_width - (700 * (screen_width // 1920))),
                               (screen_height - (420 * (screen_height // 1080))), (50 * (screen_height // 1080)))
 
+    # Создание поля ввода имени пользователя
     @staticmethod
     def generate_username_textbox():
-        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(35 * (screen_width / 1920)))
+        font = pygame.font.Font('materials\\Ubuntu-Bold.ttf', int(45 * (screen_width / 1920)))
         textbox = TextBox(screen, int((screen_width / 2) - (400 * (screen_width / 1920))),
                           int(250 * (screen_height / 1080)),
                           int(800 * (screen_width / 1920)), int(75 * (screen_height / 1080)),
@@ -1378,9 +1406,10 @@ class AccountMenu:
                           )
         return textbox
 
+    # Создание поля ввода пароля
     @staticmethod
     def generate_password_textbox():
-        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(35 * (screen_width / 1920)))
+        font = pygame.font.Font('materials\\Ubuntu-Bold.ttf', int(45 * (screen_width / 1920)))
         textbox = TextBox(screen, int((screen_width / 2) - (400 * (screen_width / 1920))),
                           int(500 * (screen_height / 1080)),
                           int(800 * (screen_width / 1920)), int(75 * (screen_height / 1080)),
@@ -1389,34 +1418,48 @@ class AccountMenu:
                           )
         return textbox
 
+    # Создание переключателя переноса статистики
+    @staticmethod
+    def generate_stats_toggle():
+        toggle = Toggle(screen, int(screen_width - (615 * (screen_width / 1920))),
+                        int(screen_height - (315 * (screen_height / 1080))),
+                        int(35 * (screen_width / 1920)), int(25 * (screen_height / 1080)),
+                        startOn=True, onColour=(79, 239, 81), offColour=(176, 0, 32),
+                        handleOnColour=(255, 255, 255), handleOffColour=(255, 255, 255),
+                        handleRadius=int((15 * (screen_height / 1080)))
+                        )
+        return toggle
+
+    # Создание кнопок для управления аккаунтом
     def generate_account_buttons(self):
         width = 500 * (screen_width / 1920)
-        height = (60 * (screen_height / 1080) + 30 * (screen_height / 1080)) * 3
+        height = (60 * (screen_height / 1080) + 30 * (screen_height / 1080)) * 4
         button_array = NewButtonArray(
             screen,
             int(screen_width // 2 - width // 2),
             int(650 * (screen_height / 1080)),
             int(width),
             int(height),
-            (1, 3),
+            (1, 4),
             border=30 * (screen_height / 1080),
             topBorder=0,
             bottomBorder=0,
             leftBorder=0,
             rightBorder=0,
-            inactiveColours=[(77, 50, 145) for _ in range(3)],
-            hoverColours=[(54, 35, 103) for _ in range(3)],
-            pressedColours=[(121, 78, 230) for _ in range(3)],
-            radii=[int(25 * (screen_height / 1080)) for _ in range(3)],
-            fonts=[self.buttons_font for _ in range(3)],
-            texts=['Login', 'Create', 'Return'],
+            inactiveColours=[(77, 50, 145) for _ in range(4)],
+            hoverColours=[(54, 35, 103) for _ in range(4)],
+            pressedColours=[(121, 78, 230) for _ in range(4)],
+            radii=[int(25 * (screen_height / 1080)) for _ in range(4)],
+            fonts=[self.buttons_font for _ in range(4)],
+            texts=['Login', 'Create', 'Delete', 'Return'],
             invisible=True,
-            textColours=[(255, 255, 255) for _ in range(3)],
-            onClicks=[lambda x: self.login(x) for _ in range(3)],
-            onClickParams=[['login'], ['create'], ['return']]
+            textColours=[(255, 255, 255) for _ in range(4)],
+            onClicks=[lambda x: self.buttons_functions(x) for _ in range(4)],
+            onClickParams=[['login'], ['create'], ['delete'], ['return']]
         )
         return button_array
 
+    # Создание текста имени пользователя
     @staticmethod
     def generate_username_text():
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(40 * (screen_width / 1920)))
@@ -1424,6 +1467,7 @@ class AccountMenu:
         text_rect = text.get_rect(center=(screen_width // 2, 200 * (screen_height / 1080)))
         return text, text_rect
 
+    # Создание текста пароля
     @staticmethod
     def generate_password_text():
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(40 * (screen_width / 1920)))
@@ -1431,6 +1475,7 @@ class AccountMenu:
         text_rect = text.get_rect(center=(screen_width // 2, 450 * (screen_height / 1080)))
         return text, text_rect
 
+    # Возврат нужного цвета
     @staticmethod
     def generate_status_colour(arg):
         colour = (150, 150, 150)
@@ -1440,35 +1485,90 @@ class AccountMenu:
             colour = (176, 0, 32)
         return colour
 
-    def login(self, arg):
-        global account_id
+    # Функции кнопок
+    def buttons_functions(self, arg):
         username = self.username_textbox.getText()
         password = self.password_textbox.getText()
         if arg == 'login':
+            self.login(username, password)
+        elif arg == 'create':
+            self.create(username, password)
+        elif arg == 'delete':
+            self.delete(username, password)
+        elif arg == 'return':
+            self.running = False
+    # Вход в аккаунт
+    def login(self, username, password):
+        global account_id
+        if db_connection.cursor().execute(
+                """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone():
+            account_id = db_connection.cursor().execute(
+                """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone()[0]
+            self.login_status_colour = self.generate_status_colour(1)
+        else:
+            self.login_status_colour = self.generate_status_colour(2)
+
+    # Создание нового аккаунта
+    def create(self, username, password):
+        global account_id, anonymous_levels_played, anonymous_levels_won, anonymous_score, anonymous_average_score, anonymous_average_rank, anonymous_successful, anonymous_average_accuracy, anonymous_accuracy
+        if not (db_connection.cursor().execute(
+                """SELECT id FROM main WHERE username = ?""", (username,)).fetchone()):
+            db_connection.cursor().execute(
+                """INSERT INTO main(username, password) VALUES(?, ?)""", (username, password))
+            db_connection.commit()
             if db_connection.cursor().execute(
                     """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone():
                 account_id = db_connection.cursor().execute(
                     """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone()[0]
-                self.login_status_colour = self.generate_status_colour(1)
-            else:
-                self.login_status_colour = self.generate_status_colour(2)
-        elif arg == 'create':
-            if not(db_connection.cursor().execute(
-                    """SELECT id FROM main WHERE username = ?""", (username,)).fetchone()):
-                db_connection.cursor().execute(
-                    """INSERT INTO main(username, password) VALUES(?, ?)""", (username, password))
-                db_connection.commit()
+                if self.stats_toggle.getValue():
+                    db_connection.execute("""UPDATE main SET levels_played = ? WHERE id = ?""",
+                                          (anonymous_levels_played, account_id))
+                    db_connection.execute("""UPDATE main SET levels_won = ? WHERE id = ?""",
+                                          (anonymous_levels_won, account_id))
+                    db_connection.execute("""UPDATE main SET score = ? WHERE id = ?""",
+                                          (anonymous_score, account_id))
+                    db_connection.execute("""UPDATE main SET average_score = ? WHERE id = ?""",
+                                          (anonymous_average_score, account_id))
+                    db_connection.execute("""UPDATE main SET successful = ? WHERE id = ?""",
+                                          (anonymous_successful, account_id))
+                    db_connection.execute("""UPDATE main SET average_accuracy = ? WHERE id = ?""",
+                                          (anonymous_average_accuracy, account_id))
+                    db_connection.execute("""UPDATE main SET average_rank = ? WHERE id = ?""",
+                                          (anonymous_average_rank, account_id))
+                    db_connection.execute("""UPDATE main SET accuracy = ? WHERE id = ?""",
+                                          (anonymous_accuracy, account_id))
+                    db_connection.commit()
+                anonymous_levels_played = 0
+                anonymous_levels_won = 0
+                anonymous_score = 0.0
+                anonymous_average_score = 0
+                anonymous_average_rank = 'N'
+                anonymous_successful = 0
+                anonymous_average_accuracy = 0.0
+                anonymous_accuracy = 0.0
                 self.create_status_colour = self.generate_status_colour(1)
-            else:
-                self.create_status_colour = self.generate_status_colour(2)
-        elif arg == 'return':
-            self.running = False
+        else:
+            self.create_status_colour = self.generate_status_colour(2)
 
+    # Удаление аккаунта
+    def delete(self, username, password):
+        global account_id
+        db_connection.cursor().execute("""DELETE FROM main WHERE username = ? AND password = ?""", (username, password))
+        db_connection.commit()
+        account_id = 0
+        if not (db_connection.cursor().execute(
+                """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone()):
+            self.delete_status_colour = self.generate_status_colour(1)
+        else:
+            self.delete_status_colour = self.generate_status_colour(2)
+
+    # Проверка выхода в меню
     def check_exit_event(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self.running = False
 
+    # Цикл для вывода на экран
     def run(self):
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
         text = font.render('Login or create your account', True, (124, 62, 249))
@@ -1482,7 +1582,10 @@ class AccountMenu:
                                                                   int(screen_height - (398 * (screen_height / 1080)))),
                                int(25 * (screen_height / 1080)))
             pygame.draw.circle(screen, self.create_status_colour, (int(screen_width - (675 * (screen_width / 1920))),
-                                                                   int(screen_height - (292 * (screen_height / 1080)))),
+                                                                   int(screen_height - (300 * (screen_height / 1080)))),
+                               int(25 * (screen_height / 1080)))
+            pygame.draw.circle(screen, self.delete_status_colour, (int(screen_width - (675 * (screen_width / 1920))),
+                                                                   int(screen_height - (200 * (screen_height / 1080)))),
                                int(25 * (screen_height / 1080)))
             events = pygame.event.get()
             self.check_exit_event(events)
@@ -1494,6 +1597,7 @@ class AccountMenu:
         close_animation()
 
 
+# Класс для просмотра статистики
 class StatsMenu:
     def __init__(self):
         self.running = True
@@ -1507,6 +1611,7 @@ class StatsMenu:
         if self.stats_buttons:
             self.stats_buttons.disable()
 
+    # Создание кнопок
     def generate_buttons(self):
         button_array = NewButtonArray(
             screen,
@@ -1532,6 +1637,7 @@ class StatsMenu:
         )
         return button_array
 
+    # Создание статистики
     def generate_stats_buttons(self):
         if not self.stats:
             return
@@ -1560,6 +1666,7 @@ class StatsMenu:
         )
         return button_array
 
+    # Создание списка статистики
     @staticmethod
     def generate_stats():
         if account_id:
@@ -1569,15 +1676,28 @@ class StatsMenu:
                 """SELECT levels_played FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
             levels_won = 'levels won: ' + str(db_connection.execute(
                 """SELECT levels_won FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
+            successful = 'successful hits: ' + str(db_connection.execute(
+                """SELECT successful FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
             average_score = 'average score: ' + str(round(db_connection.execute(
                 """SELECT average_score FROM main WHERE id = ?""", (account_id,)).fetchone()[0], 2))
             average_rank = 'average rank: ' + str(db_connection.execute(
                 """SELECT average_rank FROM main WHERE id = ?""", (account_id,)).fetchone()[0])
             average_accuracy = 'average accuracy: ' + str(round(db_connection.execute(
                 """SELECT average_accuracy FROM main WHERE id = ?""", (account_id,)).fetchone()[0], 2))
-            return name, levels_played, levels_won, average_score, average_rank, average_accuracy
+            return name, levels_played, levels_won, successful, average_score, average_rank, average_accuracy
+        elif account_id == 0:
+            name = 'nickname: Default User'
+            levels_played = 'levels played: ' + str(anonymous_levels_played)
+            levels_won = 'levels won: ' + str(anonymous_levels_won)
+            successful = 'successful hits: ' + str(anonymous_successful)
+            average_score = 'average score: ' + str(round(anonymous_average_score, 2))
+            average_rank = 'average rank: ' + str(anonymous_average_rank)
+            average_accuracy = 'average accuracy: ' + str(round(anonymous_average_accuracy, 2))
+            return name, levels_played, levels_won, successful, average_score, average_rank, average_accuracy
 
+    # Сброс статистики
     def reset_stats(self):
+        global anonymous_levels_played, anonymous_levels_won, anonymous_score, anonymous_average_score, anonymous_average_rank, anonymous_successful, anonymous_average_accuracy, anonymous_accuracy
         if account_id:
             db_connection.execute("""UPDATE main SET levels_played = ? WHERE id = ?""",
                                   (0, account_id))
@@ -1597,7 +1717,18 @@ class StatsMenu:
                                   (0.0, account_id))
             db_connection.commit()
             self.stats = self.generate_stats()
+        elif account_id == 0:
+            anonymous_levels_played = 0
+            anonymous_levels_won = 0
+            anonymous_score = 0.0
+            anonymous_average_score = 0
+            anonymous_average_rank = 'N'
+            anonymous_successful = 0
+            anonymous_average_accuracy = 0.0
+            anonymous_accuracy = 0.0
+            self.stats = self.generate_stats()
 
+    # Функции кнопок
     def buttons_functions(self, name):
         if name == 'exit':
             self.running = False
@@ -1611,11 +1742,13 @@ class StatsMenu:
             self.stats_buttons = self.generate_stats_buttons()
             self.stats_buttons.disable()
 
+    # Проверка на выход в меню
     def check_exit_event(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self.running = False
 
+    # Цикл для вывода на экран
     def run(self):
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
         text = font.render('Your stats', True, (124, 62, 249))
@@ -1737,6 +1870,7 @@ class GameResultMenu:
         self.run()
 
     def blit(self):
+        global anonymous_levels_won
         screen.blit(self.bg, (0, 0))
         big_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(100 * (screen_width / 1920)))
         small_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
@@ -1756,7 +1890,10 @@ class GameResultMenu:
             screen.blit(text, text.get_rect(center=(screen_width // 2, 500 * (screen_height / 1080))))
             if account_id:
                 self.current_levels_won += 1
+            elif account_id == 0:
+                anonymous_levels_won += 1
 
+    # Обновление данных в базе данных
     def update_database(self):
         self.current_levels_played += 1
         self.current_score += self.total
@@ -1764,7 +1901,7 @@ class GameResultMenu:
         self.current_average_score = self.current_score / self.current_levels_played
         self.current_accuracy += self.accuracy
         self.current_average_accuracy = self.current_accuracy / self.current_levels_played
-        if self.current_average_accuracy == 100:
+        if self.current_average_accuracy >= 95:
             self.current_average_rank = 'SS'
         elif self.current_average_accuracy >= 90:
             self.current_average_rank = 'S'
@@ -1794,10 +1931,34 @@ class GameResultMenu:
                               (self.accuracy, account_id))
         db_connection.commit()
 
+    # Обновление данных стандартного пользователя
+    def update_anonymous_stats(self):
+        global anonymous_levels_played, anonymous_levels_won, anonymous_score, anonymous_average_score, anonymous_average_rank, anonymous_successful, anonymous_average_accuracy, anonymous_accuracy
+        anonymous_levels_played += 1
+        anonymous_score += self.total
+        anonymous_successful += self.successful
+        anonymous_average_score = anonymous_score / anonymous_levels_played
+        anonymous_accuracy += self.accuracy
+        anonymous_average_accuracy = anonymous_accuracy / anonymous_levels_played
+        if anonymous_average_accuracy >= 95:
+            anonymous_average_rank = 'SS'
+        elif anonymous_average_accuracy >= 90:
+            anonymous_average_rank = 'S'
+        elif anonymous_average_accuracy >= 80:
+            anonymous_average_rank = 'A'
+        elif anonymous_average_accuracy >= 70:
+            anonymous_average_rank = 'B'
+        elif anonymous_average_accuracy >= 60:
+            anonymous_average_rank = 'C'
+        elif anonymous_average_accuracy < 60:
+            anonymous_average_rank = 'D'
+
     def run(self):
         self.blit()
         if account_id:
             self.update_database()
+        elif account_id == 0:
+            self.update_anonymous_stats()
         pygame.display.update()
         while self.running:
             for e in pygame.event.get():
@@ -1914,9 +2075,9 @@ def main():
         elif script == 'editor':
             editor = LevelEditor(menu.level_name)
             editor.run()
-        elif script == 'login':
-            login = AccountMenu()
-            login.run()
+        elif script == 'account':
+            account = AccountMenu()
+            account.run()
         elif script == 'stats':
             stats = StatsMenu()
             stats.run()
