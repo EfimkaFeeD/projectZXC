@@ -325,6 +325,10 @@ class Menu:
         if self.menu_song.get_volume() != 0:
             self.menu_song.set_volume(self.volume_slider.getValue() / 100)
             self.volume_level = self.volume_slider.getValue()
+        self.check_exit_events(events)
+
+    # Проверка на выход из игры
+    def check_exit_events(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 WidgetHandler.removeWidget(self.buttonArray)
@@ -913,6 +917,7 @@ class LevelEditor:
                 self.color_dropdown = self.generate_color_dropdown()
                 self.confirm_color_button = self.generate_confirm_color_button()
 
+    # Создание кнопок для редактирования и проверки уровня
     def generate_mapping_buttons(self):
         width = 500 * (screen_width / 1920)
         height = (60 * (screen_height / 1080) + 30 * (screen_height / 1080)) * 2
@@ -942,6 +947,7 @@ class LevelEditor:
         )
         return button_array
 
+    # Создание кнопок для редактирования параметров уровня
     def generate_tool_buttons(self):
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(10 * (screen_width / 1920)))
         tools = self.tools
@@ -968,6 +974,7 @@ class LevelEditor:
         )
         return button_array
 
+    # Создание меню выбора цвета целей
     @staticmethod
     def generate_color_dropdown():
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(10 * (screen_width / 1920)))
@@ -986,6 +993,7 @@ class LevelEditor:
         )
         return dropdown_menu
 
+    # Создание кнопки подтверждения цвета целей
     def generate_confirm_color_button(self):
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(10 * (screen_width / 1920)))
         x = int(225 * (screen_width / 1920))
@@ -1007,6 +1015,7 @@ class LevelEditor:
         )
         return button
 
+    # Применение цвета на цели
     def select_color(self):
         new_color = self.color_dropdown.getSelected()
         if new_color:
@@ -1017,6 +1026,7 @@ class LevelEditor:
                 json.dump(wl, f)
             self.common_data['color'] = new_color
 
+    # Запуск редактирования или проверки уровня
     def start(self, process):
         if self.button_invincible:
             return
@@ -1039,8 +1049,9 @@ class LevelEditor:
                 self.color_dropdown = self.generate_color_dropdown()
                 self.confirm_color_button = self.generate_confirm_color_button()
         if process == 'check':
-            self.edit_window()
+            self.check_window()
 
+    # Создание уровня в реальном времени
     def live_mapping(self, restart=True):
         self.level_music.stop()
         window = LiveMapWindow(f'songs//{self.level_name}//song.mp3', self.level_background, self.common_data,
@@ -1059,7 +1070,8 @@ class LevelEditor:
         self.color_dropdown = self.generate_color_dropdown()
         self.confirm_color_button = self.generate_confirm_color_button()
 
-    def edit_window(self):
+    # Режим проверки уровня
+    def check_window(self):
         WidgetHandler.removeWidget(self.mapping_buttons)
         WidgetHandler.removeWidget(self.tool_buttons)
         WidgetHandler.removeWidget(self.color_dropdown)
@@ -1072,6 +1084,7 @@ class LevelEditor:
         self.confirm_color_button = self.generate_confirm_color_button()
         self.level_music.play()
 
+    # Редактирование параметров уровня
     def tool(self, name):
         WidgetHandler.removeWidget(self.tool_buttons)
         WidgetHandler.removeWidget(self.mapping_buttons)
@@ -1192,6 +1205,7 @@ class LevelEditor:
         self.button_invincible = self.frame
 
 
+# Окно для создания уровня в реальном времени
 class LiveMapWindow:
     def __init__(self, music, bg, common, objects, restarting):
         self.music = pygame.mixer.Sound(music)
@@ -1212,9 +1226,10 @@ class LiveMapWindow:
         self.objects = []
         self.running = True
         self.saving = True
-        self.bar = self.generate_score_bar()
+        self.bar = self.generate_progress_bar()
         self.run()
 
+    # Цикл для вывода на экран
     def run(self):
         while self.running:
             screen.blit(self.bg, (0, 0))
@@ -1229,12 +1244,14 @@ class LiveMapWindow:
         WidgetHandler.removeWidget(self.bar)
         pygame.mixer.music.stop()
 
+    # Создание объектов по клику на экран
     def spawn_objects(self, events):
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 pos = pygame.mouse.get_pos()
                 self.objects.append(MappingCircle(pos[0], pos[1], time() - self.start_time))
 
+    # Проверка на выход в меню
     def check_exit_event(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE or not pygame.mouse.get_focused():
@@ -1250,8 +1267,9 @@ class LiveMapWindow:
                 else:
                     self.start_time += time() - wait_time
                     pygame.mixer.music.unpause()
-                self.bar = self.generate_score_bar()
+                self.bar = self.generate_progress_bar()
 
+    # Создание списка целей для json файла
     def pack(self):
         data = self.old_objects
         for circle in self.objects:
@@ -1259,13 +1277,15 @@ class LiveMapWindow:
                          'time': circle.start_time - self.common_data['speed']})
         return data
 
-    def generate_score_bar(self):
+    # Создание progressbar для длины уровня
+    def generate_progress_bar(self):
         score_bar = ProgressBar(screen, int(30 * (screen_width / 1920)), int(10 * (screen_height / 1080)),
                                 int(1860 * (screen_width / 1920)), int(35 * (screen_height / 1080)),
                                 self.update_bar_percent, curved=True, completedColour=(110, 0, 238),
                                 incompletedColour=(187, 134, 252))
         return score_bar
 
+    # Обновление значения progressbar
     def update_bar_percent(self):
         self.bar_percent += self.bar_speed
         if self.bar_percent >= 1:
@@ -1273,6 +1293,7 @@ class LiveMapWindow:
         return self.bar_percent
 
 
+# Вспомогательное окно для класса LiveMapWindow
 class MappingCircle:
     def __init__(self, x, y, start_time):
         self.image = pygame.transform.smoothscale(pygame.image.load('materials//livemapcircle.png'),
@@ -1282,12 +1303,14 @@ class MappingCircle:
         self.start_time = start_time
         self.blit_frame = 0
 
+    # Вывод нажатий на экран
     def blit(self):
         if self.blit_frame < 7:
             screen.blit(self.image, self.image.get_rect(center=(self.x, self.y)))
         self.blit_frame += 1
 
 
+# Окно для проверки созданного уровня
 class TestMenu:
     def __init__(self, common, objects, bg, music):
         self.common = common
@@ -1303,6 +1326,7 @@ class TestMenu:
         self.running = True
         self.run()
 
+    # Создание целей из json файла
     def unpack(self, objects):
         new = []
         radius = self.common['radius']
@@ -1320,6 +1344,7 @@ class TestMenu:
                                     fail=fail_img, outline=outline_image, font=font))
         return new
 
+    # Создание progressbar для длины уровня
     def generate_bar(self):
         score_bar = ProgressBar(screen, int(30 * (screen_width / 1920)), int(10 * (screen_height / 1080)),
                                 int(1860 * (screen_width / 1920)), int(35 * (screen_height / 1080)),
@@ -1327,12 +1352,14 @@ class TestMenu:
                                 incompletedColour=(187, 134, 252))
         return score_bar
 
+    # Обновление значения progressbar
     def update_bar_percent(self):
         self.bar_percent += self.bar_speed
         if self.bar_percent >= 1:
             self.running = False
         return self.bar_percent
 
+    # Обработка событий для целей
     def object_events(self, events):
         for obj in self.targets:
             if obj.start_time > (time() - self.start_time):
@@ -1341,6 +1368,7 @@ class TestMenu:
             if obj.hit_time:
                 del self.targets[self.targets.index(obj)]
 
+    # Проверка на выход в редактор уровня
     def check_exit_event(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE or not pygame.mouse.get_focused():
@@ -1359,6 +1387,7 @@ class TestMenu:
                     pygame.mixer.unpause()
                 self.bar = self.generate_bar()
 
+    # Цикл для вывода на экран
     def run(self):
         self.music.play()
         self.start_time = time()
@@ -1393,6 +1422,9 @@ class AccountMenu:
         self.delete_status_colour = self.generate_status_colour(0)
         self.status_circle = ((screen_width - (700 * (screen_width // 1920))),
                               (screen_height - (420 * (screen_height // 1080))), (50 * (screen_height // 1080)))
+        self.login_starttime = 0
+        self.create_starttime = 0
+        self.delete_starttime = 0
 
     # Создание поля ввода имени пользователя
     @staticmethod
@@ -1404,6 +1436,9 @@ class AccountMenu:
                           fontSize=int(75 * (screen_height / 1080)), textColour=(121, 78, 230),
                           radius=int(25 * (screen_height / 1080)), font=font
                           )
+        if account_id:
+            textbox.text = db_connection.cursor().execute(
+                """SELECT username FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
         return textbox
 
     # Создание поля ввода пароля
@@ -1507,10 +1542,12 @@ class AccountMenu:
             self.login_status_colour = self.generate_status_colour(1)
         else:
             self.login_status_colour = self.generate_status_colour(2)
+        self.password_textbox.text = ''
 
     # Создание нового аккаунта
     def create(self, username, password):
-        global account_id, anonymous_levels_played, anonymous_levels_won, anonymous_score, anonymous_average_score, anonymous_average_rank, anonymous_successful, anonymous_average_accuracy, anonymous_accuracy
+        global account_id, anonymous_levels_played, anonymous_levels_won, anonymous_score, anonymous_average_score,\
+            anonymous_average_rank, anonymous_successful, anonymous_average_accuracy, anonymous_accuracy
         if not (db_connection.cursor().execute(
                 """SELECT id FROM main WHERE username = ?""", (username,)).fetchone()):
             db_connection.cursor().execute(
@@ -1549,16 +1586,32 @@ class AccountMenu:
                 self.create_status_colour = self.generate_status_colour(1)
         else:
             self.create_status_colour = self.generate_status_colour(2)
+        self.password_textbox.text = ''
 
     # Удаление аккаунта
     def delete(self, username, password):
         global account_id
-        db_connection.cursor().execute("""DELETE FROM main WHERE username = ? AND password = ?""", (username, password))
-        db_connection.commit()
-        account_id = 0
-        if not (db_connection.cursor().execute(
+        if (db_connection.cursor().execute(
                 """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone()):
-            self.delete_status_colour = self.generate_status_colour(1)
+            WidgetHandler.removeWidget(self.buttons)
+            WidgetHandler.removeWidget(self.username_textbox)
+            WidgetHandler.removeWidget(self.password_textbox)
+            WidgetHandler.removeWidget(self.stats_toggle)
+            window = PauseMenu(self.image, 'cancel', 'confirm', title='Would you like to confirm?')
+            self.buttons = self.generate_account_buttons()
+            self.username_textbox = self.generate_username_textbox()
+            self.password_textbox = self.generate_password_textbox()
+            self.stats_toggle = self.generate_stats_toggle()
+            if window.state == 'cancel':
+                return
+            self.username_textbox.text = ''
+            db_connection.cursor().execute(
+                """DELETE FROM main WHERE username = ? AND password = ?""", (username, password))
+            db_connection.commit()
+            account_id = 0
+            if not (db_connection.cursor().execute(
+                    """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone()):
+                self.delete_status_colour = self.generate_status_colour(1)
         else:
             self.delete_status_colour = self.generate_status_colour(2)
 
@@ -1594,6 +1647,7 @@ class AccountMenu:
         WidgetHandler.removeWidget(self.buttons)
         WidgetHandler.removeWidget(self.username_textbox)
         WidgetHandler.removeWidget(self.password_textbox)
+        WidgetHandler.removeWidget(self.stats_toggle)
         close_animation()
 
 
@@ -1697,7 +1751,8 @@ class StatsMenu:
 
     # Сброс статистики
     def reset_stats(self):
-        global anonymous_levels_played, anonymous_levels_won, anonymous_score, anonymous_average_score, anonymous_average_rank, anonymous_successful, anonymous_average_accuracy, anonymous_accuracy
+        global anonymous_levels_played, anonymous_levels_won, anonymous_score, anonymous_average_score,\
+            anonymous_average_rank, anonymous_successful, anonymous_average_accuracy, anonymous_accuracy
         if account_id:
             db_connection.execute("""UPDATE main SET levels_played = ? WHERE id = ?""",
                                   (0, account_id))
@@ -1766,6 +1821,7 @@ class StatsMenu:
         close_animation()
 
 
+# Окно меню паузы
 class PauseMenu:
     def __init__(self, bg, *args, **kwargs):
         self.bg_image = bg
@@ -1777,6 +1833,7 @@ class PauseMenu:
         self.running = True
         self.run()
 
+    # Создание кнопок
     def generate_buttons(self):
         width = 500 * (screen_width / 1920)
         height = (60 * (screen_height / 1080) + 30 * (screen_height / 1080)) * len(self.text)
@@ -1806,10 +1863,12 @@ class PauseMenu:
         )
         return button_array
 
+    # Обновление состояния
     def update_state(self, state):
         self.state = state
         self.running = False
 
+    # Вывод на экран
     def blit(self):
         screen.blit(self.bg_image, (0, 0))
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
@@ -1817,6 +1876,7 @@ class PauseMenu:
         text_rect = text.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080)))
         screen.blit(text, text_rect)
 
+    # Цикл для вывода на экран
     def run(self):
         while self.running:
             self.blit()
@@ -1833,6 +1893,7 @@ class PauseMenu:
         WidgetHandler.removeWidget(self.buttons)
 
 
+# Окно результатов игры
 class GameResultMenu:
     def __init__(self, state, suc=0, total=0, diff=''):
         self.state = state
@@ -1869,6 +1930,7 @@ class GameResultMenu:
         self.running = True
         self.run()
 
+    # Вывод на экран
     def blit(self):
         global anonymous_levels_won
         screen.blit(self.bg, (0, 0))
@@ -1933,7 +1995,8 @@ class GameResultMenu:
 
     # Обновление данных стандартного пользователя
     def update_anonymous_stats(self):
-        global anonymous_levels_played, anonymous_levels_won, anonymous_score, anonymous_average_score, anonymous_average_rank, anonymous_successful, anonymous_average_accuracy, anonymous_accuracy
+        global anonymous_levels_played, anonymous_levels_won, anonymous_score, anonymous_average_score,\
+            anonymous_average_rank, anonymous_successful, anonymous_average_accuracy, anonymous_accuracy
         anonymous_levels_played += 1
         anonymous_score += self.total
         anonymous_successful += self.successful
@@ -1953,6 +2016,7 @@ class GameResultMenu:
         elif anonymous_average_accuracy < 60:
             anonymous_average_rank = 'D'
 
+    #Цикл для вывода на экран
     def run(self):
         self.blit()
         if account_id:
@@ -1966,6 +2030,7 @@ class GameResultMenu:
                     self.running = False
 
 
+# Окно для уровней с пустым json файлом
 class EmptyLevelWindow:
     def __init__(self):
         self.bg = pygame.transform.smoothscale(pygame.image.load('materials//empty.jpg'), (screen_width, screen_height))
@@ -1973,6 +2038,7 @@ class EmptyLevelWindow:
         self.running = True
         self.run()
 
+    # Цикл для вывода на экран
     def run(self):
         self.blit()
         pygame.display.update()
@@ -1981,12 +2047,14 @@ class EmptyLevelWindow:
                 if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
                     self.running = False
 
+    # Вывод на экран
     def blit(self):
         screen.blit(self.bg, (0, 0))
         render = self.font.render('This is empty level', True, (124, 62, 249))
         screen.blit(render, render.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080))))
 
 
+# Окно для ввода информации
 class DialogWindow:
     def __init__(self, bg, description, data_type):
         self.texts = description
@@ -1998,6 +2066,7 @@ class DialogWindow:
         self.running = True
         self.run()
 
+    # Создание поля для ввода информации
     def generate_entering(self):
         width = 800 * (screen_width / 1920)
         height = 80 * (screen_height / 1080)
@@ -2008,6 +2077,7 @@ class DialogWindow:
                           borderThickness=5)
         return textbox
 
+    # Создание кнопок
     def generate_buttons(self):
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(10 * (screen_width / 1920)))
         button_array = NewButtonArray(
@@ -2033,6 +2103,7 @@ class DialogWindow:
         )
         return button_array
 
+    # Проверка и сохранение данных
     def change_text(self, condition):
         if condition:
             self.text = self.entering.getText()
@@ -2042,6 +2113,7 @@ class DialogWindow:
                 self.text = None
         self.running = False
 
+    # Цикл для вывода на экран
     def run(self):
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(35 * (screen_width / 1920)))
         while self.running:
