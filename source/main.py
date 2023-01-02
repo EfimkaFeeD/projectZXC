@@ -576,9 +576,9 @@ class Game:
     def blit_accuracy(self):
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(20 * (screen_width / 1920)))
         if self.total_objects == 0:
-            txt = '100%'
+            txt = '100.0%'
         elif self.successful_hits == 0:
-            txt = '0%'
+            txt = '0.0%'
         else:
             txt = f'{round(self.successful_hits / self.total_objects * 100, 2)}%'
         render = font.render(txt, True, (124, 62, 249))
@@ -1414,7 +1414,8 @@ class AccountMenu:
         self.buttons = self.generate_account_buttons()
         self.username_textbox = self.generate_username_textbox()
         self.password_textbox = self.generate_password_textbox()
-        self.stats_toggle = self.generate_stats_toggle()
+        self.create_stats_toggle = self.generate_create_stats_toggle()
+        self.login_stats_toggle = self.generate_login_stats_toggle()
         self.username_text, self.username_text_rect = self.generate_username_text()
         self.password_text, self.password_text_rect = self.generate_password_text()
         self.login_status_colour = self.generate_status_colour(0)
@@ -1437,8 +1438,8 @@ class AccountMenu:
                           radius=int(25 * (screen_height / 1080)), font=font
                           )
         if account_id:
-            textbox.text = db_connection.cursor().execute(
-                """SELECT username FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
+            textbox.text = [db_connection.cursor().execute(
+                """SELECT username FROM main WHERE id = ?""", (account_id,)).fetchone()[0]]
         return textbox
 
     # Создание поля ввода пароля
@@ -1453,11 +1454,23 @@ class AccountMenu:
                           )
         return textbox
 
-    # Создание переключателя переноса статистики
+    # Создание переключателя переноса статистики при регистрации аккаунта
     @staticmethod
-    def generate_stats_toggle():
+    def generate_create_stats_toggle():
         toggle = Toggle(screen, int(screen_width - (615 * (screen_width / 1920))),
                         int(screen_height - (315 * (screen_height / 1080))),
+                        int(35 * (screen_width / 1920)), int(25 * (screen_height / 1080)),
+                        startOn=True, onColour=(79, 239, 81), offColour=(176, 0, 32),
+                        handleOnColour=(255, 255, 255), handleOffColour=(255, 255, 255),
+                        handleRadius=int((15 * (screen_height / 1080)))
+                        )
+        return toggle
+
+    # Создание переключателя переноса статистики при входе в аккаунт
+    @staticmethod
+    def generate_login_stats_toggle():
+        toggle = Toggle(screen, int(screen_width - (615 * (screen_width / 1920))),
+                        int(screen_height - (415 * (screen_height / 1080))),
                         int(35 * (screen_width / 1920)), int(25 * (screen_height / 1080)),
                         startOn=True, onColour=(79, 239, 81), offColour=(176, 0, 32),
                         handleOnColour=(255, 255, 255), handleOffColour=(255, 255, 255),
@@ -1532,17 +1545,64 @@ class AccountMenu:
             self.delete(username, password)
         elif arg == 'return':
             self.running = False
+
     # Вход в аккаунт
     def login(self, username, password):
-        global account_id
+        global account_id, account_id, anonymous_levels_played, anonymous_levels_won, anonymous_score,\
+            anonymous_average_score, anonymous_average_rank, anonymous_successful, anonymous_average_accuracy,\
+            anonymous_accuracy
         if db_connection.cursor().execute(
                 """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone():
             account_id = db_connection.cursor().execute(
                 """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone()[0]
             self.login_status_colour = self.generate_status_colour(1)
+            if self.login_stats_toggle.getValue() and anonymous_levels_played:
+                current_score = db_connection.cursor().execute(
+                    """SELECT score FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
+                current_successful = db_connection.cursor().execute(
+                    """SELECT successful FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
+                current_levels_played = db_connection.cursor().execute(
+                    """SELECT levels_played FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
+                current_levels_won = db_connection.cursor().execute(
+                    """SELECT levels_won FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
+                current_accuracy = db_connection.cursor().execute(
+                    """SELECT accuracy FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
+                accuracy = current_accuracy + anonymous_accuracy
+                average_accuracy = accuracy / (current_levels_played + anonymous_levels_played)
+                average_rank = 'N'
+                if average_accuracy >= 95:
+                    average_rank = 'SS'
+                elif average_accuracy >= 90:
+                    average_rank = 'S'
+                elif average_accuracy >= 80:
+                    average_rank = 'A'
+                elif average_accuracy >= 70:
+                    average_rank = 'B'
+                elif average_accuracy >= 60:
+                    average_rank = 'C'
+                elif average_accuracy < 60:
+                    average_rank = 'D'
+                db_connection.execute("""UPDATE main SET levels_played = ? WHERE id = ?""",
+                                      (current_levels_played + anonymous_levels_played, account_id))
+                db_connection.execute("""UPDATE main SET levels_won = ? WHERE id = ?""",
+                                      (current_levels_won + anonymous_levels_won, account_id))
+                db_connection.execute("""UPDATE main SET score = ? WHERE id = ?""",
+                                      (current_score + anonymous_score, account_id))
+                db_connection.execute("""UPDATE main SET average_score = ? WHERE id = ?""",
+                                      ((anonymous_score + current_score) /
+                                       (anonymous_levels_played + current_levels_played), account_id))
+                db_connection.execute("""UPDATE main SET successful = ? WHERE id = ?""",
+                                      (current_successful + anonymous_successful, account_id))
+                db_connection.execute("""UPDATE main SET average_accuracy = ? WHERE id = ?""",
+                                      (average_accuracy, account_id))
+                db_connection.execute("""UPDATE main SET average_rank = ? WHERE id = ?""",
+                                      (average_rank, account_id))
+                db_connection.execute("""UPDATE main SET accuracy = ? WHERE id = ?""",
+                                      (accuracy, account_id))
+                db_connection.commit()
         else:
             self.login_status_colour = self.generate_status_colour(2)
-        self.password_textbox.text = ''
+        self.password_textbox.text = []
 
     # Создание нового аккаунта
     def create(self, username, password):
@@ -1557,7 +1617,7 @@ class AccountMenu:
                     """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone():
                 account_id = db_connection.cursor().execute(
                     """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone()[0]
-                if self.stats_toggle.getValue():
+                if self.create_stats_toggle.getValue():
                     db_connection.execute("""UPDATE main SET levels_played = ? WHERE id = ?""",
                                           (anonymous_levels_played, account_id))
                     db_connection.execute("""UPDATE main SET levels_won = ? WHERE id = ?""",
@@ -1586,7 +1646,7 @@ class AccountMenu:
                 self.create_status_colour = self.generate_status_colour(1)
         else:
             self.create_status_colour = self.generate_status_colour(2)
-        self.password_textbox.text = ''
+        self.password_textbox.text = []
 
     # Удаление аккаунта
     def delete(self, username, password):
@@ -1596,15 +1656,17 @@ class AccountMenu:
             WidgetHandler.removeWidget(self.buttons)
             WidgetHandler.removeWidget(self.username_textbox)
             WidgetHandler.removeWidget(self.password_textbox)
-            WidgetHandler.removeWidget(self.stats_toggle)
+            WidgetHandler.removeWidget(self.create_stats_toggle)
+            WidgetHandler.removeWidget(self.login_stats_toggle)
             window = PauseMenu(self.image, 'cancel', 'confirm', title='Would you like to confirm?')
             self.buttons = self.generate_account_buttons()
             self.username_textbox = self.generate_username_textbox()
             self.password_textbox = self.generate_password_textbox()
-            self.stats_toggle = self.generate_stats_toggle()
+            self.create_stats_toggle = self.generate_create_stats_toggle()
+            self.login_stats_toggle = self.generate_login_stats_toggle()
             if window.state == 'cancel':
                 return
-            self.username_textbox.text = ''
+            self.username_textbox.text = []
             db_connection.cursor().execute(
                 """DELETE FROM main WHERE username = ? AND password = ?""", (username, password))
             db_connection.commit()
@@ -1647,7 +1709,8 @@ class AccountMenu:
         WidgetHandler.removeWidget(self.buttons)
         WidgetHandler.removeWidget(self.username_textbox)
         WidgetHandler.removeWidget(self.password_textbox)
-        WidgetHandler.removeWidget(self.stats_toggle)
+        WidgetHandler.removeWidget(self.create_stats_toggle)
+        WidgetHandler.removeWidget(self.login_stats_toggle)
         close_animation()
 
 
@@ -2016,7 +2079,7 @@ class GameResultMenu:
         elif anonymous_average_accuracy < 60:
             anonymous_average_rank = 'D'
 
-    #Цикл для вывода на экран
+    # Цикл для вывода на экран
     def run(self):
         self.blit()
         if account_id:
