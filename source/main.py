@@ -74,6 +74,43 @@ class NewButtonArray(ButtonArray):
                 button.draw()
 
 
+# Класс курсора
+class Cursor:
+    def __init__(self):
+        self.size = 70 * (screen_width / 1080)
+        self.x, self.y = pygame.mouse.get_pos()
+        self.image = pygame.transform.smoothscale(pygame.image.load('materials//cur.png'), (self.size, self.size))
+        self.hitbox = pygame.Rect(self.x - self.size // 2, self.y - self.size // 2, self.size, self.size)
+        self.hidden = False
+        pygame.mouse.set_visible(False)
+
+    # Изменения при смене разрешения
+    def refactor(self):
+        self.size = 70 * (screen_width / 1080)
+        self.image = pygame.transform.smoothscale(pygame.image.load('materials//cur.png'), (self.size, self.size))
+        self.hitbox = pygame.Rect(self.x - self.size // 2, self.y - self.size // 2, self.size, self.size)
+
+    # Обновление позиции
+    def update(self):
+        self.x, self.y = pygame.mouse.get_pos()
+        self.hitbox.x, self.hitbox.y = self.x - self.size // 2, self.y - self.size // 2
+        if not self.hidden:
+            screen.blit(self.image, self.image.get_rect(center=(self.x, self.y)))
+
+    # Скрытие курсора
+    def hide(self, mouse_hiding=True):
+        self.hidden = True
+        pygame.mouse.set_visible(not mouse_hiding)
+
+    # Отмена скрытия курсора
+    def show(self):
+        self.hidden = False
+        pygame.mouse.set_visible(False)
+
+
+cursor = Cursor()
+
+
 # Анимация затухания
 def close_animation():
     surface = pygame.Surface((screen_width, screen_height))
@@ -400,6 +437,7 @@ class Menu:
         WidgetHandler.removeWidget(self.account_button)
         WidgetHandler.removeWidget(self.stats_button)
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
+        cursor.refactor()
         self.buttonArray = self.generate_song_button_array()
         self.FPS_dropdown_menu = self.generate_fps_dropdown_menu()
         self.difficulty_dropdown_menu = self.generate_difficulty_dropdown_menu()
@@ -498,6 +536,7 @@ class Menu:
         while self.running:
             self.blit()
             self.update_widgets(pygame.event.get())
+            cursor.update()
             pygame.display.update()
         self.confirm_settings()
         close_animation()
@@ -524,6 +563,7 @@ class Menu:
             self.update_widgets(pygame.event.get())
             surface.set_alpha(int(255 * (i / fps)))
             screen.blit(surface, (0, 0))
+            cursor.update()
             pygame.display.update()
             clock.tick(fps)
 
@@ -605,6 +645,7 @@ class Game:
 
     # Расположение на уровне
     def object_events(self, events):
+        marking = False
         for obj in self.objects:
             if obj.start_time > (time() - self.start_time):
                 return
@@ -616,6 +657,9 @@ class Game:
                     obj.is_checked = True
                 if data[2]:
                     del self.objects[self.objects.index(obj)]
+            elif not marking:
+                obj.mark()
+                marking = True
 
     # Создание нового кадра игры
     def generate_frame(self, events):
@@ -666,6 +710,7 @@ class Game:
         self.start_time = time()
         while self.running:
             self.generate_frame(pygame.event.get())
+            cursor.update()
             pygame.display.update()
             clock.tick(fps)
         self.level_music.stop()
@@ -730,7 +775,8 @@ class TargetCircle:
         self.is_checked = False
         self.cheats = cheats
         self.hit_time = None
-        self.color = color
+        self.marked_color = color
+        self.color = (156, 156, 156)
         self.wait_time = None
         self.hitbox = pygame.Rect(self.x - self.max_radius // 2, self.y - self.max_radius // 2, self.max_radius,
                                   self.max_radius)
@@ -756,6 +802,9 @@ class TargetCircle:
             self.death = 1
             if self.cheats:
                 self.hit_sound.play()
+
+    def mark(self):
+        self.color = self.marked_color
 
     # Обновление всех параметров
     def frame_update(self, events):
@@ -787,7 +836,7 @@ class TargetCircle:
                 for el in uncorrected_keys:
                     if pygame.key.get_pressed()[el]:
                         return
-                if self.hitbox.collidepoint(pygame.mouse.get_pos()):
+                if self.hitbox.colliderect(cursor.hitbox):
                     self.hit_sound.play()
                     self.hit_time = time() - self.lifetime
                     self.death = 1
@@ -886,6 +935,7 @@ class LevelEditor:
             events = pygame.event.get()
             pygame_widgets.update(events)
             self.check_exit_event(events)
+            cursor.update()
             pygame.display.update()
             self.frame += 1
         self.level_music.stop()
@@ -1213,20 +1263,20 @@ class LiveMapWindow:
         self.bg = bg
         self.common_data = common
         self.bar_speed = 1 / (self.music.get_length() * 60)
+        self.time_upscaling = 0
         if not restarting:
             self.old_objects = objects
-            self.start_time = objects[-1]['time'] + common['speed']
-            pygame.mixer.music.play(start=self.start_time)
-            self.bar_percent = self.start_time / self.music.get_length()
+            self.time_upscaling = objects[-1]['time'] + common['speed']
+            self.bar_percent = self.time_upscaling / self.music.get_length()
         else:
             self.old_objects = []
-            self.start_time = time()
-            pygame.mixer.music.play()
             self.bar_percent = -self.bar_speed
         self.objects = []
         self.running = True
         self.saving = True
         self.bar = self.generate_progress_bar()
+        self.start_time = time()
+        pygame.mixer.music.play(start=self.time_upscaling)
         self.run()
 
     # Цикл для вывода на экран
@@ -1239,6 +1289,7 @@ class LiveMapWindow:
             self.check_exit_event(events)
             for circle in self.objects:
                 circle.blit()
+            cursor.update()
             pygame.display.update()
             clock.tick(60)
         WidgetHandler.removeWidget(self.bar)
@@ -1249,7 +1300,7 @@ class LiveMapWindow:
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 pos = pygame.mouse.get_pos()
-                self.objects.append(MappingCircle(pos[0], pos[1], time() - self.start_time))
+                self.objects.append(MappingCircle(pos[0], pos[1], time() - self.start_time + self.time_upscaling))
 
     # Проверка на выход в меню
     def check_exit_event(self, events):
@@ -1318,7 +1369,7 @@ class TestMenu:
         self.music = music
         if not objects:
             return
-        self.bar_speed = 1 / ((objects[-1]['time'] + common['speed'] + 3) * fps)
+        self.bar_speed = 1 / ((objects[-1]['time'] + common['speed'] + 1) * fps)
         self.bar_percent = -self.bar_speed
         self.bar = self.generate_bar()
         self.targets = self.unpack(objects)
@@ -1361,6 +1412,8 @@ class TestMenu:
 
     # Обработка событий для целей
     def object_events(self, events):
+        if self.targets:
+            self.targets[0].mark()
         for obj in self.targets:
             if obj.start_time > (time() - self.start_time):
                 return
@@ -1397,6 +1450,7 @@ class TestMenu:
             self.object_events(events)
             pygame_widgets.update(events)
             self.check_exit_event(events)
+            cursor.update()
             pygame.display.update()
             clock.tick(fps)
         WidgetHandler.removeWidget(self.bar)
@@ -1423,9 +1477,9 @@ class AccountMenu:
         self.delete_status_colour = self.generate_status_colour(0)
         self.status_circle = ((screen_width - (700 * (screen_width // 1920))),
                               (screen_height - (420 * (screen_height // 1080))), (50 * (screen_height // 1080)))
-        self.login_starttime = 0
-        self.create_starttime = 0
-        self.delete_starttime = 0
+        self.login_starttime = None
+        self.create_starttime = None
+        self.delete_starttime = None
 
     # Создание поля ввода имени пользователя
     @staticmethod
@@ -1524,13 +1578,19 @@ class AccountMenu:
         return text, text_rect
 
     # Возврат нужного цвета
-    @staticmethod
-    def generate_status_colour(arg):
+    def generate_status_colour(self, arg, counter=None):
         colour = (150, 150, 150)
         if arg == 1:
             colour = (79, 239, 81)
         elif arg == 2:
             colour = (176, 0, 32)
+        if colour != (150, 150, 150):
+            if counter == 'login':
+                self.login_starttime = time()
+            if counter == 'create':
+                self.create_starttime = time()
+            if counter == 'delete':
+                self.delete_starttime = time()
         return colour
 
     # Функции кнопок
@@ -1555,7 +1615,7 @@ class AccountMenu:
                 """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone():
             account_id = db_connection.cursor().execute(
                 """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone()[0]
-            self.login_status_colour = self.generate_status_colour(1)
+            self.login_status_colour = self.generate_status_colour(1, 'login')
             if self.login_stats_toggle.getValue() and anonymous_levels_played:
                 current_score = db_connection.cursor().execute(
                     """SELECT score FROM main WHERE id = ?""", (account_id,)).fetchone()[0]
@@ -1601,8 +1661,7 @@ class AccountMenu:
                                       (accuracy, account_id))
                 db_connection.commit()
         else:
-            self.login_status_colour = self.generate_status_colour(2)
-        self.password_textbox.text = []
+            self.login_status_colour = self.generate_status_colour(2, 'login')
 
     # Создание нового аккаунта
     def create(self, username, password):
@@ -1643,10 +1702,9 @@ class AccountMenu:
                 anonymous_successful = 0
                 anonymous_average_accuracy = 0.0
                 anonymous_accuracy = 0.0
-                self.create_status_colour = self.generate_status_colour(1)
+                self.create_status_colour = self.generate_status_colour(1, 'create')
         else:
-            self.create_status_colour = self.generate_status_colour(2)
-        self.password_textbox.text = []
+            self.create_status_colour = self.generate_status_colour(2, 'create')
 
     # Удаление аккаунта
     def delete(self, username, password):
@@ -1673,9 +1731,9 @@ class AccountMenu:
             account_id = 0
             if not (db_connection.cursor().execute(
                     """SELECT id FROM main WHERE username = ? AND password = ?""", (username, password)).fetchone()):
-                self.delete_status_colour = self.generate_status_colour(1)
+                self.delete_status_colour = self.generate_status_colour(1, 'delete')
         else:
-            self.delete_status_colour = self.generate_status_colour(2)
+            self.delete_status_colour = self.generate_status_colour(2, 'delete')
 
     # Проверка выхода в меню
     def check_exit_event(self, events):
@@ -1703,8 +1761,15 @@ class AccountMenu:
                                                                    int(screen_height - (200 * (screen_height / 1080)))),
                                int(25 * (screen_height / 1080)))
             events = pygame.event.get()
+            if self.login_starttime and time() - self.login_starttime >= 2:
+                self.login_status_colour = self.generate_status_colour(0)
+            if self.create_starttime and time() - self.create_starttime >= 2:
+                self.create_status_colour = self.generate_status_colour(0)
+            if self.delete_starttime and time() - self.delete_starttime >= 2:
+                self.delete_status_colour = self.generate_status_colour(0)
             self.check_exit_event(events)
             pygame_widgets.update(events)
+            cursor.update()
             pygame.display.update()
         WidgetHandler.removeWidget(self.buttons)
         WidgetHandler.removeWidget(self.username_textbox)
@@ -1877,6 +1942,7 @@ class StatsMenu:
             events = pygame.event.get()
             self.check_exit_event(events)
             pygame_widgets.update(events)
+            cursor.update()
             pygame.display.update()
         WidgetHandler.removeWidget(self.buttons)
         if self.stats_buttons:
@@ -1949,6 +2015,7 @@ class PauseMenu:
                 if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
                     self.state = self.text[0]
                     self.running = False
+            cursor.update()
             pygame.display.update()
         music = self.music[self.text.index(self.state)]
         if music:
@@ -2086,11 +2153,13 @@ class GameResultMenu:
             self.update_database()
         elif account_id == 0:
             self.update_anonymous_stats()
+        cursor.hide(mouse_hiding=True)
         pygame.display.update()
         while self.running:
             for e in pygame.event.get():
                 if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
                     self.running = False
+        cursor.show()
 
 
 # Окно для уровней с пустым json файлом
@@ -2104,11 +2173,13 @@ class EmptyLevelWindow:
     # Цикл для вывода на экран
     def run(self):
         self.blit()
+        cursor.hide(mouse_hiding=True)
         pygame.display.update()
         while self.running:
             for e in pygame.event.get():
                 if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
                     self.running = False
+        cursor.show()
 
     # Вывод на экран
     def blit(self):
@@ -2187,6 +2258,7 @@ class DialogWindow:
                 screen.blit(render, render.get_rect(center=(screen_width // 2, y)))
                 y += 40 * (screen_height / 1080)
             pygame_widgets.update(pygame.event.get())
+            cursor.update()
             pygame.display.update()
         WidgetHandler.removeWidget(self.entering)
         WidgetHandler.removeWidget(self.buttons)
