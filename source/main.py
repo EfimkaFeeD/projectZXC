@@ -13,7 +13,7 @@ from pygame_widgets.progressbar import ProgressBar
 from pygame_widgets.textbox import TextBox
 from pygame_widgets.toggle import Toggle
 from random import choice
-from time import time
+from time import time, sleep
 
 
 # Необходимо для определения разрешения по неясным причинам
@@ -30,7 +30,7 @@ screen = pygame.display.set_mode((screen_width, screen_height))
 clock = pygame.time.Clock()
 
 # Подключение к базе данных
-db_connection = sqlite3.connect('zxc.db')
+db_connection = sqlite3.connect('system//zxc.db')
 account_id = 0
 
 # Статистика для стандартного пользователя
@@ -120,6 +120,21 @@ def close_animation():
         screen.blit(surface, (0, 0))
         pygame.display.update()
         clock.tick(fps)
+    sleep(0.4)
+
+
+def screensaver():
+    font = pygame.font.Font('materials\\Press Start 2P.ttf', int(70 * (screen_width / 1920)))
+    text1 = font.render('(project)', True, (77, 50, 145))
+    text2 = font.render('zxc', True, (77, 50, 145))
+    pygame.mixer.Sound('materials//start_song.mp3').play()
+    for i in range(fps * 2):
+        text1.set_alpha(int(255 * (i / fps)))
+        text2.set_alpha(int(255 * ((i - 60) / fps)))
+        screen.blit(text1, text1.get_rect(center=(screen_width // 2, screen_height // 2)))
+        screen.blit(text2, text2.get_rect(center=(1350 * (screen_width / 1920), 470 * (screen_height / 1080))))
+        pygame.display.update()
+        clock.tick(fps)
 
 
 # Класс главного меню
@@ -150,6 +165,7 @@ class Menu:
         self.confirm_button = self.generate_confirm_button()
         self.add_song_button = self.generate_add_song_button()
         self.menu_songs_dropdown_menu = self.generate_menu_songs_dropdown_menu()
+        self.instructions_button = self.generate_instructions_button()
         self.volume_level = args[0]
         if args[2]:
             self.menu_song.set_volume(0)
@@ -196,6 +212,29 @@ class Menu:
             onClick=lambda: self.stats()
         )
         return stats_button
+
+    def generate_instructions_button(self):
+        stats_button = Button(
+            screen,
+            int(525 * (screen_width / 1920)),
+            screen_height - int(75 * (screen_height / 1080)),
+            int(200 * (screen_width / 1920)),
+            int(50 * (screen_height / 1080)),
+            text='instructions',
+            radius=int(25 * (screen_height / 1080)),
+            textColour=self.buttons_font_color,
+            inactiveColour=(77, 50, 145),
+            hoverColour=(54, 35, 103),
+            pressedColour=(121, 78, 230),
+            font=self.buttons_font,
+            border=30 * (screen_height / 1080),
+            onClick=self.instructions
+        )
+        return stats_button
+
+    def instructions(self):
+        self.script = 'instructions'
+        self.running = False
 
     # Создания списка музыки для меню
     def generate_menu_songs_dropdown_menu(self):
@@ -379,6 +418,7 @@ class Menu:
                 WidgetHandler.removeWidget(self.menu_songs_dropdown_menu)
                 WidgetHandler.removeWidget(self.account_button)
                 WidgetHandler.removeWidget(self.stats_button)
+                WidgetHandler.removeWidget(self.instructions_button)
                 window = PauseMenu(self.menu_image, 'return', 'exit', music=['materials//return.mp3', None],
                                    title='Exit?')
                 if window.state == 'exit':
@@ -397,6 +437,7 @@ class Menu:
                     self.menu_songs_dropdown_menu = self.generate_menu_songs_dropdown_menu()
                     self.account_button = self.generate_account_button()
                     self.stats_button = self.generate_stats_button()
+                    self.instructions_button = self.generate_instructions_button()
 
     def start_waiting(self):
         self.wait_time = 1 / fps
@@ -435,6 +476,7 @@ class Menu:
         WidgetHandler.removeWidget(self.mute_button)
         WidgetHandler.removeWidget(self.menu_songs_dropdown_menu)
         WidgetHandler.removeWidget(self.account_button)
+        WidgetHandler.removeWidget(self.instructions_button)
         WidgetHandler.removeWidget(self.stats_button)
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
         cursor.refactor()
@@ -450,6 +492,7 @@ class Menu:
         self.menu_songs_dropdown_menu = self.generate_menu_songs_dropdown_menu()
         self.account_button = self.generate_account_button()
         self.stats_button = self.generate_stats_button()
+        self.instructions_button = self.generate_instructions_button()
 
     # Создание кнопки подтверждения настроек
     def generate_confirm_button(self):
@@ -553,6 +596,7 @@ class Menu:
             WidgetHandler.removeWidget(self.menu_songs_dropdown_menu)
             WidgetHandler.removeWidget(self.account_button)
             WidgetHandler.removeWidget(self.stats_button)
+            WidgetHandler.removeWidget(self.instructions_button)
 
     # Анимация перехода на уровень
     def start_animation(self):
@@ -646,10 +690,13 @@ class Game:
     # Расположение на уровне
     def object_events(self, events):
         marking = False
+        clicked = False
         for obj in self.objects:
             if obj.start_time > (time() - self.start_time):
                 return
-            data = obj.frame_update(events)
+            data = obj.frame_update(events, clicked)
+            if obj.clicked and obj.death == 1:
+                clicked = True
             if data[0]:
                 if not obj.is_checked:
                     self.score(data[1])
@@ -773,6 +820,7 @@ class TargetCircle:
         self.radius = 0
         self.death = 0
         self.is_checked = False
+        self.clicked = False
         self.cheats = cheats
         self.hit_time = None
         self.marked_color = color
@@ -807,10 +855,11 @@ class TargetCircle:
         self.color = self.marked_color
 
     # Обновление всех параметров
-    def frame_update(self, events):
+    def frame_update(self, events, clicked=True):
         self.move()
         self.blit()
-        self.collision(events)
+        if not clicked:
+            self.collision(events)
         return self.get_data()
 
     # Реакция на результат попадания
@@ -840,6 +889,7 @@ class TargetCircle:
                     self.hit_sound.play()
                     self.hit_time = time() - self.lifetime
                     self.death = 1
+                    self.clicked = True
 
     # При переходе в меню паузы
     def pause(self):
@@ -1262,7 +1312,7 @@ class LiveMapWindow:
         pygame.mixer.music.load(music)
         self.bg = bg
         self.common_data = common
-        self.bar_speed = 1 / (self.music.get_length() * 60)
+        self.bar_speed = 1 / ((self.music.get_length() * 60) + 1)
         self.time_upscaling = 0
         if not restarting:
             self.old_objects = objects
@@ -1369,7 +1419,7 @@ class TestMenu:
         self.music = music
         if not objects:
             return
-        self.bar_speed = 1 / ((objects[-1]['time'] + common['speed'] + 1) * fps)
+        self.bar_speed = 1 / ((objects[-1]['time'] + common['speed']) * fps + 1)
         self.bar_percent = -self.bar_speed
         self.bar = self.generate_bar()
         self.targets = self.unpack(objects)
@@ -2264,12 +2314,89 @@ class DialogWindow:
         WidgetHandler.removeWidget(self.buttons)
 
 
+class InstructionsWindow:
+    def __init__(self):
+        self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
+        self.big_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(30 * (screen_width / 1920)))
+        self.buttons = self.generate_buttons()
+        self.text = open('system//instructions.txt', encoding='utf-8').readlines()
+        self.line = 0
+        self.step = 12
+        self.image = pygame.transform.smoothscale(pygame.image.load('materials//menu_bg.jpg'),
+                                                  (screen_width, screen_height))
+        self.image.set_alpha(20)
+        self.running = True
+
+    def generate_buttons(self):
+        button_array = NewButtonArray(
+            screen,
+            int((screen_width // 2) - (520 * (screen_width / 1920))),
+            int(screen_height - (100 * (screen_height / 1080))),
+            int(350 * (screen_width / 1920)) * 3, int(75 * (screen_height / 1080)),
+            (3, 1),
+            border=30 * (screen_height / 1080),
+            topBorder=0,
+            bottomBorder=0,
+            leftBorder=0,
+            rightBorder=0,
+            inactiveColours=[(77, 50, 145) for _ in range(3)],
+            hoverColours=[(54, 35, 103) for _ in range(3)],
+            pressedColours=[(121, 78, 230) for _ in range(3)],
+            radii=[int(25 * (screen_height / 1080)) for _ in range(3)],
+            fonts=[self.buttons_font for _ in range(3)],
+            texts=['prew page', 'next page', 'exit'],
+            invisible=True,
+            textColours=[(255, 255, 255) for _ in range(3)],
+            onClicks=[lambda x: self.buttons_functions(x) for _ in range(3)],
+            onClickParams=[['prew'], ['next'], ['exit']]
+        )
+        return button_array
+
+    def buttons_functions(self, arg):
+        if arg == 'next':
+            if self.line + self.step < len(self.text):
+                self.line += self.step
+        if arg == 'prew':
+            if self.line - self.step >= 0:
+                self.line -= self.step
+        if arg == 'exit':
+            self.running = False
+
+    def blit(self):
+        pygame.draw.rect(screen, 'black', (0, 0, screen_width, screen_height))
+        screen.blit(self.image, (0, 0))
+        y = 200 * (screen_height / 1080)
+        for line in range(self.line, min([self.line + self.step, len(self.text)])):
+            render = self.big_font.render(self.text[line][:-1], True, (160, 160, 160))
+            screen.blit(render, render.get_rect(center=(screen_width // 2, y)))
+            y += 50 * (screen_height / 1080)
+
+    def check_exit_events(self, events):
+        for e in events:
+            if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
+                self.running = False
+
+    def run(self):
+        self.blit()
+        pygame.display.update()
+        while self.running:
+            events = pygame.event.get()
+            self.check_exit_events(events)
+            self.blit()
+            pygame_widgets.update(events)
+            cursor.update()
+            pygame.display.update()
+            clock.tick(fps)
+        WidgetHandler.removeWidget(self.buttons)
+
+
 running = True
 
 
 # Основной цикл игры
 def main():
     global running
+    screensaver()
     settings_data = [100, 'normal', False]
     while running:
         menu = Menu(settings_data)
@@ -2288,6 +2415,9 @@ def main():
         elif script == 'stats':
             stats = StatsMenu()
             stats.run()
+        elif script == 'instructions':
+            instructions = InstructionsWindow()
+            instructions.run()
 
 
 if __name__ == '__main__':
