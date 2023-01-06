@@ -3,7 +3,10 @@ import pygame
 import pygame_widgets
 import json
 import sqlite3
-from tkinter import filedialog
+import logging
+from sys import exit
+from datetime import datetime
+from tkinter import filedialog, messagebox
 from screeninfo import get_monitors
 from pygame_widgets.button import ButtonArray, Button
 from pygame_widgets.dropdown import Dropdown
@@ -23,6 +26,9 @@ get_monitors()
 resolutions = [(1600, 900), (1920, 1080), (2560, 1440), (3840, 2160)]
 fps = 60
 pygame.init()
+date = datetime.now()
+log_name = f"system//logs//{date.day}_{date.month}_{date.year}-{date.hour}_{date.minute}_{date.second}.log"
+logging.basicConfig(level=logging.INFO, filename=log_name, filemode="w", format="%(asctime)s %(levelname)s %(message)s")
 screen_width = pygame.display.Info().current_w
 screen_height = pygame.display.Info().current_h
 max_w, max_h = screen_width, screen_height
@@ -123,18 +129,23 @@ def close_animation():
     sleep(0.4)
 
 
-def screensaver():
-    font = pygame.font.Font('materials\\Press Start 2P.ttf', int(70 * (screen_width / 1920)))
-    text1 = font.render('(project)', True, (77, 50, 145))
-    text2 = font.render('zxc', True, (77, 50, 145))
+def intro():
+    font1 = pygame.font.Font('materials\\Press Start 2P.ttf', int(70 * (screen_width / 1920)))
+    font2 = pygame.font.Font('materials\\Press Start 2P.ttf', int(40 * (screen_width / 1920)))
+    text1 = font1.render('(project)', True, (77, 50, 145))
+    text2 = font1.render('zxc', True, (77, 50, 145))
+    text3 = font2.render('by GGergy and Efimka_FeeD', True, (77, 50, 145))
     pygame.mixer.Sound('materials//start_song.mp3').play()
     for i in range(fps * 2):
         text1.set_alpha(int(255 * (i / fps)))
         text2.set_alpha(int(255 * ((i - 60) / fps)))
+        text3.set_alpha(int(255 * ((i - 100) / fps)))
         screen.blit(text1, text1.get_rect(center=(screen_width // 2, screen_height // 2)))
         screen.blit(text2, text2.get_rect(center=(1350 * (screen_width / 1920), 470 * (screen_height / 1080))))
+        screen.blit(text3, text3.get_rect(center=(1400 * (screen_width / 1920), 1000 * (screen_height / 1080))))
         pygame.display.update()
         clock.tick(fps)
+    sleep(0.4)
 
 
 # Класс главного меню
@@ -144,6 +155,10 @@ class Menu:
         self.difficult = args[1]
         self.menu_songs = [arg[2] for arg in os.walk('materials//menu_musics')][0]
         self.menu_song = pygame.mixer.Sound('materials//menu_musics//' + self.menu_songs[0])
+        self.volume_level = args[0]
+        self.menu_song.set_volume(self.volume_level)
+        if args[2]:
+            self.menu_song.set_volume(0)
         self.menu_song.play(-1)
         self.confirm_exit_buttons = None
         self.song_list = [arg[1] for arg in os.walk('songs')][0]
@@ -166,9 +181,6 @@ class Menu:
         self.add_song_button = self.generate_add_song_button()
         self.menu_songs_dropdown_menu = self.generate_menu_songs_dropdown_menu()
         self.instructions_button = self.generate_instructions_button()
-        self.volume_level = args[0]
-        if args[2]:
-            self.menu_song.set_volume(0)
         self.volume_slider = self.generate_volume_slider()
         self.mute_button = self.generate_mute_button()
         self.start_animation()
@@ -287,7 +299,7 @@ class Menu:
     def generate_difficulty_dropdown_menu(self):
         difficulty_drop_menu = Dropdown(
             screen, int(25 * (screen_width / 1920)), int(15 * (screen_height / 1080)),
-            int(200 * (screen_width / 1920)), int(50 * (screen_height / 1080)), name='difficult',
+            int(200 * (screen_width / 1920)), int(50 * (screen_height / 1080)), name='difficulty',
             choices=[
                 'normal',
                 'medium',
@@ -423,7 +435,8 @@ class Menu:
                                    title='Exit?')
                 if window.state == 'exit':
                     close_animation()
-                    quit()
+                    logging.info('Session ended')
+                    exit()
                 else:
                     self.buttonArray = self.generate_song_button_array()
                     self.FPS_dropdown_menu = self.generate_fps_dropdown_menu()
@@ -684,7 +697,8 @@ class Game:
         for data in self.level_data["circles"]:
             objects.append(TargetCircle(start_time=data['time'], x=data["x"], y=data["y"], speed=speed,
                                         radius=radius, key=self.generate_key(), color=color, suc=suc_img,
-                                        fail=fail_img, outline=outline_image, font=font))
+                                        fail=fail_img, outline=outline_image, font=font,
+                                        volume=self.level_music.get_volume()))
         return objects
 
     # Расположение на уровне
@@ -806,7 +820,8 @@ class Game:
 class TargetCircle:
     hit_sound = pygame.mixer.Sound('materials\\circle_click.mp3')
 
-    def __init__(self, x, y, radius, speed, start_time, key, color, outline, font, suc, fail, cheats=False):
+    def __init__(self, x, y, radius, speed, start_time, key, color, outline, font, suc, fail, cheats=False, volume=1.0):
+        self.hit_sound.set_volume(volume)
         self.x = int(x * (screen_width / 1920))
         self.y = int(y * (screen_height / 1080))
         self.max_radius = int(radius * (screen_width / 1920))
@@ -911,12 +926,13 @@ class TargetCircle:
 
 # Класс редактора для создания уровней
 class LevelEditor:
-    def __init__(self, level_name=None):
+    def __init__(self, level_name=None, volume_level=1):
         self.default_bg = pygame.transform.smoothscale(pygame.image.load('materials//redactor_default.jpg'),
                                                        (screen_width, screen_height))
         self.running = True
         self.button_invincible = False
         self.frame = 0
+        self.volume_level = volume_level
         self.level_name = level_name
         self.tools = ['set bg', 'set speed', 'set radius', 'set bar speed', 'set up delta', 'set down delta',
                       'delete level', 'rename']
@@ -977,6 +993,7 @@ class LevelEditor:
     def run(self):
         if not self.level_name:
             return
+        self.level_music.set_volume(self.volume_level)
         self.level_music.play(-1)
         while self.running:
             if self.button_invincible and self.frame - self.button_invincible > 3:
@@ -1155,7 +1172,7 @@ class LevelEditor:
     def live_mapping(self, restart=True):
         self.level_music.stop()
         window = LiveMapWindow(f'songs//{self.level_name}//song.mp3', self.level_background, self.common_data,
-                               self.objects, restart)
+                               self.objects, restart, volume_level=self.volume_level)
         if window.saving:
             data = window.pack()
             self.objects = data
@@ -1164,6 +1181,7 @@ class LevelEditor:
                 wl['circles'] = data
             with open('songs\\' + self.level_name + '\\' + 'level.json', mode='w') as f:
                 json.dump(wl, f)
+        self.level_music.set_volume(self.volume_level)
         self.level_music.play(-1)
         self.mapping_buttons = self.generate_mapping_buttons()
         self.tool_buttons = self.generate_tool_buttons()
@@ -1177,11 +1195,12 @@ class LevelEditor:
         WidgetHandler.removeWidget(self.color_dropdown)
         WidgetHandler.removeWidget(self.confirm_color_button)
         self.level_music.stop()
-        TestMenu(self.common_data, self.objects, self.level_background, self.level_music)
+        TestMenu(self.common_data, self.objects, self.level_background, self.level_music, self.volume_level)
         self.mapping_buttons = self.generate_mapping_buttons()
         self.tool_buttons = self.generate_tool_buttons()
         self.color_dropdown = self.generate_color_dropdown()
         self.confirm_color_button = self.generate_confirm_color_button()
+        self.level_music.set_volume(self.volume_level)
         self.level_music.play()
 
     # Редактирование параметров уровня
@@ -1211,7 +1230,7 @@ class LevelEditor:
                     self.confirm_color_button = self.generate_confirm_color_button()
                     return
                 except Exception as e:
-                    print(e)
+                    logging.warning(e, exc_info=True)
         if name == 'rename':
             window = DialogWindow(self.level_background,
                                   description=['Enter new level name',
@@ -1224,7 +1243,7 @@ class LevelEditor:
                         self.level_name = new_name
                         break
                     except Exception as e:
-                        print(e)
+                        logging.warning(e, exc_info=True)
                         continue
         if name == 'set bg':
             new_name = filedialog.askopenfilename(filetypes=(("jpg image", "*.jpg"),), title='select new background')
@@ -1236,8 +1255,9 @@ class LevelEditor:
         if name == 'set up delta':
             window = DialogWindow(self.level_background,
                                   description=['Enter new up delta',
-                                               '(percentage of change in the score scale from a miss)',
-                                               f'Now - {self.common_data["speed"]}'], data_type=float)
+                                               '(percentage of change in the score',
+                                               'scale from a successful hit)',
+                                               f'Now - {self.common_data["delta_up"]}'], data_type=float)
             new_delta = window.text
             if new_delta or new_delta == 0:
                 with open('songs\\' + self.level_name + '\\' + 'level.json') as f:
@@ -1249,8 +1269,8 @@ class LevelEditor:
             window = DialogWindow(self.level_background,
                                   description=['Enter new down delta',
                                                '(percentage of change in the score',
-                                               'scale from a successful hit)',
-                                               f'Now - {self.common_data["speed"]}'], data_type=float)
+                                               'scale from a miss)',
+                                               f'Now - {self.common_data["delta_down"]}'], data_type=float)
             new_delta = window.text
             if new_delta or new_delta == 0:
                 with open('songs\\' + self.level_name + '\\' + 'level.json') as f:
@@ -1307,7 +1327,7 @@ class LevelEditor:
 
 # Окно для создания уровня в реальном времени
 class LiveMapWindow:
-    def __init__(self, music, bg, common, objects, restarting):
+    def __init__(self, music, bg, common, objects, restarting, volume_level):
         self.music = pygame.mixer.Sound(music)
         pygame.mixer.music.load(music)
         self.bg = bg
@@ -1326,6 +1346,7 @@ class LiveMapWindow:
         self.saving = True
         self.bar = self.generate_progress_bar()
         self.start_time = time()
+        pygame.mixer.music.set_volume(volume_level)
         pygame.mixer.music.play(start=self.time_upscaling)
         self.run()
 
@@ -1413,13 +1434,14 @@ class MappingCircle:
 
 # Окно для проверки созданного уровня
 class TestMenu:
-    def __init__(self, common, objects, bg, music):
+    def __init__(self, common, objects, bg, music, volume_level):
         self.common = common
         self.bg = bg
         self.music = music
+        self.music.set_volume(volume_level)
         if not objects:
             return
-        self.bar_speed = 1 / ((objects[-1]['time'] + common['speed']) * fps + 1)
+        self.bar_speed = 1 / ((objects[-1]['time'] + common['speed'] + 3) * fps)
         self.bar_percent = -self.bar_speed
         self.bar = self.generate_bar()
         self.targets = self.unpack(objects)
@@ -1442,7 +1464,7 @@ class TestMenu:
             new.append(TargetCircle(x=obj['x'], y=obj['y'], start_time=obj['time'], speed=self.common['speed'],
                                     radius=self.common['radius'], key=pygame.K_c, cheats=True,
                                     color=self.common['color'], suc=suc_img,
-                                    fail=fail_img, outline=outline_image, font=font))
+                                    fail=fail_img, outline=outline_image, font=font, volume=self.music.get_volume()))
         return new
 
     # Создание progressbar для длины уровня
@@ -2396,7 +2418,8 @@ running = True
 # Основной цикл игры
 def main():
     global running
-    screensaver()
+    logging.info('Create new session')
+    intro()
     settings_data = [100, 'normal', False]
     while running:
         menu = Menu(settings_data)
@@ -2404,21 +2427,36 @@ def main():
         settings_data = [menu.volume_level, menu.difficult, menu.menu_song.get_volume() == 0]
         script = menu.script
         if script == 'game':
+            logging.info(f'start game on {menu.level_name}')
             game = Game(menu.level_name, menu.difficult, menu.volume_level)
             game.run()
         elif script == 'editor':
-            editor = LevelEditor(menu.level_name)
+            if menu.level_name:
+                logging.info(f'start editor on {menu.level_name}')
+            else:
+                logging.info(f'start editior on new level')
+            editor = LevelEditor(menu.level_name, menu.volume_level / 100)
             editor.run()
         elif script == 'account':
+            logging.info(f'start account')
             account = AccountMenu()
             account.run()
         elif script == 'stats':
+            logging.info(f'start stats')
             stats = StatsMenu()
             stats.run()
         elif script == 'instructions':
+            logging.info(f'start instructions')
             instructions = InstructionsWindow()
             instructions.run()
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as exception:
+        logging.critical(exception, exc_info=True)
+        logging.shutdown()
+        pygame.mouse.set_visible(True)
+        os.rename(log_name, log_name[:log_name.rfind('//') + 1] + "FATAL!!! " + log_name[log_name.rfind('//') + 2:])
+        messagebox.showerror(message="Game crashed, you can see log file in launcher", title='game has been crashed')
