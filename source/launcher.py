@@ -29,7 +29,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.bug_button.clicked.connect(self.open_logs)
         self.help_button.clicked.connect(self.open_help)
         self.game_running = False
-        self.game_name = 'main.exe'
+        self.game_name = open('system//__name__.txt').read()
         self.repo = 'https://github.com/EfimkaFeeD/pygameProject'
         self.timer = QTimer()
         self.timer.setInterval(1000)

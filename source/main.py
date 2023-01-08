@@ -121,7 +121,7 @@ cursor = Cursor()
 def close_animation():
     surface = pygame.Surface((screen_width, screen_height))
     surface.fill((0, 0, 0))
-    for i in range(1, fps):
+    for i in range(1, fps, 2):
         surface.set_alpha(int(255 * (i / fps)))
         screen.blit(surface, (0, 0))
         pygame.display.update()
@@ -615,7 +615,7 @@ class Menu:
     def start_animation(self):
         surface = pygame.Surface((screen_width, screen_height))
         surface.fill((0, 0, 0))
-        for i in range(fps, 1, -1):
+        for i in range(fps, 1, -2):
             self.blit()
             self.update_widgets(pygame.event.get())
             surface.set_alpha(int(255 * (i / fps)))
@@ -658,7 +658,7 @@ class Game:
     def start_animation(self):
         surface = pygame.Surface((screen_width, screen_height))
         surface.fill((0, 0, 0))
-        for i in range(fps, 1, -1):
+        for i in range(fps, 1, -2):
             self.blit_background()
             surface.set_alpha(int(255 * (i / fps)))
             screen.blit(surface, (0, 0))
@@ -1195,7 +1195,8 @@ class LevelEditor:
         WidgetHandler.removeWidget(self.color_dropdown)
         WidgetHandler.removeWidget(self.confirm_color_button)
         self.level_music.stop()
-        TestMenu(self.common_data, self.objects, self.level_background, self.level_music, self.volume_level)
+        TestMenu(self.common_data, self.objects, self.level_background, f'songs//{self.level_name}//song.mp3',
+                 self.volume_level)
         self.mapping_buttons = self.generate_mapping_buttons()
         self.tool_buttons = self.generate_tool_buttons()
         self.color_dropdown = self.generate_color_dropdown()
@@ -1237,6 +1238,7 @@ class LevelEditor:
                                                f'Now - {self.level_name}'], data_type=str)
             new_name = window.text
             if new_name:
+                new_name = new_name.strip()
                 for _ in range(5):
                     try:
                         os.rename(f'songs//{self.level_name}', f'songs//{new_name}')
@@ -1332,7 +1334,7 @@ class LiveMapWindow:
         pygame.mixer.music.load(music)
         self.bg = bg
         self.common_data = common
-        self.bar_speed = 1 / ((self.music.get_length() * 60) + 1)
+        self.bar_speed = 1 / ((self.music.get_length() + 3) * 60)
         self.time_upscaling = 0
         if not restarting:
             self.old_objects = objects
@@ -1437,7 +1439,8 @@ class TestMenu:
     def __init__(self, common, objects, bg, music, volume_level):
         self.common = common
         self.bg = bg
-        self.music = music
+        self.music = pygame.mixer.Sound(music)
+        pygame.mixer.music.load(music)
         self.music.set_volume(volume_level)
         if not objects:
             return
@@ -1497,7 +1500,7 @@ class TestMenu:
     def check_exit_event(self, events):
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE or not pygame.mouse.get_focused():
-                pygame.mixer.pause()
+                pygame.mixer.music.pause()
                 WidgetHandler.removeWidget(self.bar)
                 wait_time = time()
                 for obj in self.targets:
@@ -1509,12 +1512,12 @@ class TestMenu:
                     self.start_time += time() - wait_time
                     for obj in self.targets:
                         obj.unpause()
-                    pygame.mixer.unpause()
+                    pygame.mixer.music.unpause()
                 self.bar = self.generate_bar()
 
     # Цикл для вывода на экран
     def run(self):
-        self.music.play()
+        pygame.mixer.music.play()
         self.start_time = time()
         while self.running:
             screen.blit(self.bg, (0, 0))
@@ -1526,7 +1529,7 @@ class TestMenu:
             pygame.display.update()
             clock.tick(fps)
         WidgetHandler.removeWidget(self.bar)
-        self.music.stop()
+        pygame.mixer.music.stop()
 
 
 # Класс для управления аккаунтом
@@ -2388,6 +2391,8 @@ class InstructionsWindow:
         pygame.draw.rect(screen, 'black', (0, 0, screen_width, screen_height))
         screen.blit(self.image, (0, 0))
         y = 200 * (screen_height / 1080)
+        render = self.big_font.render(f'page {self.line // 12 + 1}', True, (160, 160, 160))
+        screen.blit(render, render.get_rect(center=(1000 * (screen_width / 1920), 900 * (screen_height / 1080))))
         for line in range(self.line, min([self.line + self.step, len(self.text)])):
             render = self.big_font.render(self.text[line][:-1], True, (160, 160, 160))
             screen.blit(render, render.get_rect(center=(screen_width // 2, y)))
