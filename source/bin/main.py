@@ -648,6 +648,7 @@ class Game:
             self.level_music.stop()
             self.running = False
             return
+        self.possible_objects = len(self.objects)
         self.start_animation()
         self.total_objects = 0
         self.start_time = None
@@ -759,7 +760,7 @@ class Game:
     def check_end_game(self):
         if self.bar_percent < 0:
             WidgetHandler.removeWidget(self.score_bar)
-            GameResultMenu('loose', self.successful_hits, self.total_objects, self.difficult)
+            GameResultMenu('loose', self.successful_hits, self.total_objects, self.difficult, self.possible_objects)
         elif len(self.objects) == 0:
             WidgetHandler.removeWidget(self.score_bar)
             GameResultMenu('win', self.successful_hits, self.total_objects, self.difficult)
@@ -2104,7 +2105,7 @@ class PauseMenu:
 
 # Окно результатов игры
 class GameResultMenu:
-    def __init__(self, state, suc=0, total=0, diff=''):
+    def __init__(self, state, suc=0, total=0, diff='', len_possible=None):
         self.state = state
         if total == 0:
             self.accuracy = 100
@@ -2117,6 +2118,7 @@ class GameResultMenu:
             self.bg = pygame.transform.smoothscale(pygame.image.load('materials//loose.jpg'),
                                                    (screen_width, screen_height))
         self.successful = suc
+        self.len_possible = len_possible
         self.total = total
         self.difficult = diff
         if account_id:
@@ -2148,21 +2150,24 @@ class GameResultMenu:
         if self.state == 'loose':
             text = big_font.render('LOOSE!', True, (124, 62, 249))
             screen.blit(text, text.get_rect(center=(screen_width // 2, 75 * (screen_height / 1080))))
+            text = small_font.render(f'percentage of completion - {round(self.total / self.len_possible * 100, 2)}%',
+                                     True, (124, 62, 249))
+            screen.blit(text, text.get_rect(center=(screen_width // 2, 600 * (screen_height / 1080))))
         else:
             text = big_font.render('WIN!', True, (124, 62, 249))
             screen.blit(text, text.get_rect(center=(screen_width // 2, 75 * (screen_height / 1080))))
-            text = small_font.render(f'accuracy - {self.accuracy}%', True, (124, 62, 249))
-            screen.blit(text, text.get_rect(center=(screen_width // 2, 200 * (screen_height / 1080))))
-            text = small_font.render(f'successful - {self.successful}', True, (124, 62, 249))
-            screen.blit(text, text.get_rect(center=(screen_width // 2, 300 * (screen_height / 1080))))
-            text = small_font.render(f'total - {self.total}', True, (124, 62, 249))
-            screen.blit(text, text.get_rect(center=(screen_width // 2, 400 * (screen_height / 1080))))
-            text = small_font.render(f'difficult - {self.difficult}', True, (124, 62, 249))
-            screen.blit(text, text.get_rect(center=(screen_width // 2, 500 * (screen_height / 1080))))
             if account_id:
                 self.current_levels_won += 1
             elif account_id == 0:
                 anonymous_levels_won += 1
+        text = small_font.render(f'accuracy - {self.accuracy}%', True, (124, 62, 249))
+        screen.blit(text, text.get_rect(center=(screen_width // 2, 200 * (screen_height / 1080))))
+        text = small_font.render(f'successful - {self.successful}', True, (124, 62, 249))
+        screen.blit(text, text.get_rect(center=(screen_width // 2, 300 * (screen_height / 1080))))
+        text = small_font.render(f'total - {self.total}', True, (124, 62, 249))
+        screen.blit(text, text.get_rect(center=(screen_width // 2, 400 * (screen_height / 1080))))
+        text = small_font.render(f'difficult - {self.difficult}', True, (124, 62, 249))
+        screen.blit(text, text.get_rect(center=(screen_width // 2, 500 * (screen_height / 1080))))
 
     # Обновление данных в базе данных
     def update_database(self):
@@ -2348,12 +2353,15 @@ class InstructionsWindow:
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
         self.big_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(30 * (screen_width / 1920)))
         self.buttons = self.generate_buttons()
-        self.text = open('system//instructions.txt', encoding='utf-8').readlines()
+        with open('system//instructions.txt', encoding='utf-8') as file:
+            self.pages = file.read().split('***')
         self.line = 0
         self.step = 12
         self.image = pygame.transform.smoothscale(pygame.image.load('materials//menu_bg.jpg'),
                                                   (screen_width, screen_height))
         self.image.set_alpha(20)
+        self.page_num = 0
+        self.current_page = self.generate_page()
         self.running = True
 
     def generate_buttons(self):
@@ -2373,34 +2381,60 @@ class InstructionsWindow:
             pressedColours=[(121, 78, 230) for _ in range(3)],
             radii=[int(25 * (screen_height / 1080)) for _ in range(3)],
             fonts=[self.buttons_font for _ in range(3)],
-            texts=['prew page', 'next page', 'exit'],
+            texts=['previous page', 'next page', 'exit'],
             invisible=True,
             textColours=[(255, 255, 255) for _ in range(3)],
             onClicks=[lambda x: self.buttons_functions(x) for _ in range(3)],
-            onClickParams=[['prew'], ['next'], ['exit']]
+            onClickParams=[['prev'], ['next'], ['exit']]
         )
         return button_array
 
+    def spin(self, events):
+        for event in events:
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 5:
+                    if self.line < len(self.current_page) - 1:
+                        self.line += 1
+                elif event.button == 4:
+                    if self.line > 0:
+                        self.line -= 1
+
     def buttons_functions(self, arg):
         if arg == 'next':
-            if self.line + self.step < len(self.text):
-                self.line += self.step
-        if arg == 'prew':
-            if self.line - self.step >= 0:
-                self.line -= self.step
+            if self.page_num < len(self.pages) - 1:
+                self.page_num += 1
+        if arg == 'prev':
+            if self.page_num >= 1:
+                self.page_num -= 1
         if arg == 'exit':
             self.running = False
+        self.line = 0
+        self.current_page = self.generate_page()
 
     def blit(self):
         pygame.draw.rect(screen, 'black', (0, 0, screen_width, screen_height))
         screen.blit(self.image, (0, 0))
-        y = 200 * (screen_height / 1080)
-        render = self.big_font.render(f'page {self.line // 12 + 1}', True, (160, 160, 160))
+        render = self.big_font.render(f'page {self.page_num + 1}', True, (160, 160, 160))
         screen.blit(render, render.get_rect(center=(1000 * (screen_width / 1920), 900 * (screen_height / 1080))))
-        for line in range(self.line, min([self.line + self.step, len(self.text)])):
-            render = self.big_font.render(self.text[line][:-1], True, (160, 160, 160))
+        y = 200 * (screen_height / 1080)
+        for line in range(self.line, min([self.line + self.step, len(self.current_page)])):
+            render = self.big_font.render(self.current_page[line][:-1], True, (160, 160, 160))
             screen.blit(render, render.get_rect(center=(screen_width // 2, y)))
             y += 50 * (screen_height / 1080)
+
+    def generate_page(self):
+        words = self.pages[self.page_num].split()
+        title = words[0]
+        page = [title + ' ']
+        words = words[1:]
+        word_index = 0
+        while word_index != len(words):
+            line = ''
+            while word_index < len(words) and len(line) + len(words[word_index]) <= 50:
+                line += words[word_index] + ' '
+                word_index += 1
+            page.append(line)
+        return page
 
     def check_exit_events(self, events):
         for e in events:
@@ -2408,16 +2442,14 @@ class InstructionsWindow:
                 self.running = False
 
     def run(self):
-        self.blit()
-        pygame.display.update()
         while self.running:
             events = pygame.event.get()
             self.check_exit_events(events)
             self.blit()
+            self.spin(events)
             pygame_widgets.update(events)
             cursor.update()
             pygame.display.update()
-            clock.tick(fps)
         WidgetHandler.removeWidget(self.buttons)
 
 
