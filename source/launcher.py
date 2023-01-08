@@ -8,7 +8,7 @@ import psutil
 from PyQt5.QtCore import QTimer, QSize, QRect, Qt
 from PyQt5.QtGui import QImage, QBrush, QPalette, QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QScrollArea, QPushButton, QVBoxLayout, QWidget, QDialog
-from system.Highly_Usable_Interface import Ui_MainWindow
+from bin.system.Highly_Usable_Interface import Ui_MainWindow
 
 
 class MyWidget(QMainWindow, Ui_MainWindow):
@@ -29,7 +29,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.bug_button.clicked.connect(self.open_logs)
         self.help_button.clicked.connect(self.open_help)
         self.game_running = False
-        self.game_name = open('system//__name__.txt').read()
+        self.game_name = open('bin//system//__name__.txt').read()
         self.repo = 'https://github.com/EfimkaFeeD/pygameProject'
         self.timer = QTimer()
         self.timer.setInterval(1000)
@@ -39,7 +39,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.project_label.setStyleSheet('color: rgb(255, 255, 255)')
         self.launcher_label.setStyleSheet('color: rgb(255, 255, 255)')
         self.zxc_label.setStyleSheet('color: rgb(255, 255, 255)')
-        image = QImage('materials//redactor_default.jpg').scaled(QSize(self.width(), self.height()))
+        image = QImage('bin//materials//redactor_default.jpg').scaled(QSize(self.width(), self.height()))
         palette = QPalette()
         palette.setBrush(QPalette.Window, QBrush(image))
         self.setPalette(palette)
@@ -50,7 +50,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
 
     @staticmethod
     def open_help():
-        os.system(f'notepad.exe system//instructions.txt')
+        os.system(f'notepad.exe bin//system//instructions.txt')
 
     def open_logs(self):
         self.log_window = BugReportsWindow()
@@ -58,7 +58,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
 
     def run(self):
         if not self.game_running:
-            subprocess.Popen([self.game_name])
+            subprocess.Popen([f'bin//{self.game_name}'])
         else:
             subprocess.Popen(f'taskkill /im {self.game_name} /f')
 
@@ -93,7 +93,7 @@ class BugReportsWindow(QDialog):
         font = QFont()
         font.setPointSize(12)
         self.label.setFont(font)
-        logs = [arg[2] for arg in os.walk('system//logs')][0]
+        logs = [arg[2] for arg in os.walk('bin//system//logs')][0]
         self.logs_layout = QVBoxLayout()
         for i, log in enumerate(logs[::-1]):
             button = QPushButton(log[:-4], self)
@@ -107,7 +107,7 @@ class BugReportsWindow(QDialog):
     def open_log(self):
         log = self.sender().text()
         try:
-            os.startfile(f'system\\logs\\{log}.log')
+            os.startfile(f'bin\\system\\logs\\{log}.log')
         except Exception as e:
             print(e)
 
