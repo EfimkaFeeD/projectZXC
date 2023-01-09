@@ -133,6 +133,7 @@ def close_animation():
     sleep(0.4)
 
 
+# Вступительная анимация
 def intro():
     font1 = pygame.font.Font('materials\\Press Start 2P.ttf', int(70 * (screen_width / 1920)))
     font2 = pygame.font.Font('materials\\Press Start 2P.ttf', int(40 * (screen_width / 1920)))
@@ -229,6 +230,7 @@ class Menu:
         )
         return stats_button
 
+    # Создание кнопки ддл инструкции
     def generate_instructions_button(self):
         stats_button = Button(
             screen,
@@ -248,6 +250,7 @@ class Menu:
         )
         return stats_button
 
+    # Переход на экран инструкции при нажатии на кнопку
     def instructions(self):
         self.script = 'instructions'
         self.running = False
@@ -2348,6 +2351,7 @@ class DialogWindow:
         WidgetHandler.removeWidget(self.buttons)
 
 
+# Окно инструкции
 class InstructionsWindow:
     def __init__(self):
         self.buttons_font = pygame.font.Font('materials\\Press Start 2P.ttf', int(15 * (screen_width / 1920)))
@@ -2364,6 +2368,7 @@ class InstructionsWindow:
         self.current_page = self.generate_page()
         self.running = True
 
+    # Создание кнопок
     def generate_buttons(self):
         button_array = NewButtonArray(
             screen,
@@ -2389,6 +2394,7 @@ class InstructionsWindow:
         )
         return button_array
 
+    # Прокрутка текста колесом мыши
     def spin(self, events):
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -2399,6 +2405,7 @@ class InstructionsWindow:
                     if self.line > 0:
                         self.line -= 1
 
+    # Функции кнопок
     def buttons_functions(self, arg):
         if arg == 'next':
             if self.page_num < len(self.pages) - 1:
@@ -2411,6 +2418,7 @@ class InstructionsWindow:
         self.line = 0
         self.current_page = self.generate_page()
 
+    # Вывод инутсрукции на экран
     def blit(self):
         pygame.draw.rect(screen, 'black', (0, 0, screen_width, screen_height))
         screen.blit(self.image, (0, 0))
@@ -2422,6 +2430,7 @@ class InstructionsWindow:
             screen.blit(render, render.get_rect(center=(screen_width // 2, y)))
             y += 50 * (screen_height / 1080)
 
+    # Создание текста страницы инструкции
     def generate_page(self):
         words = self.pages[self.page_num].split()
         title = words[0]
@@ -2436,11 +2445,13 @@ class InstructionsWindow:
             page.append(line)
         return page
 
+    # Проверка на выход в меню
     def check_exit_events(self, events):
         for e in events:
             if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
                 self.running = False
 
+    # Вывод на экран
     def run(self):
         while self.running:
             events = pygame.event.get()
