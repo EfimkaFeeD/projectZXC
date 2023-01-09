@@ -1,5 +1,3 @@
-# NEED exe main game file!!!!
-
 import sys
 import os
 import subprocess
@@ -11,6 +9,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QScrollArea, QPus
 from bin.system.Highly_Usable_Interface import Ui_MainWindow
 
 
+# Класс главного окна (НЕОБХОДИМ .exe ИГРЫ ДЛЯ РАБОТЫ)
 class MyWidget(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
@@ -45,23 +44,28 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.setPalette(palette)
         self.picture = QLabel(self)
 
+    # Открытие GitHub
     def open_github(self):
         webbrowser.open(self.repo)
 
+    # Открытие инструкции
     @staticmethod
     def open_help():
         os.system(f'notepad.exe bin//system//instructions.txt')
 
+    # Открытие окна с логами
     def open_logs(self):
         self.log_window = BugReportsWindow()
         self.log_window.show()
 
+    # Открытие и закрытие игры
     def run(self):
         if not self.game_running:
             subprocess.Popen([f'bin//{self.game_name}'])
         else:
             subprocess.Popen(f'taskkill /im {self.game_name} /f')
 
+    # Проверка на работу игры
     def update_state(self):
         for process in psutil.process_iter():
             if process.name() == self.game_name:
@@ -71,11 +75,13 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.game_running = False
         self.start_button.setText('run')
 
+    # Выход из лаунчера при нажатии Escape
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
             sys.exit()
 
 
+# Класс репорта ошибок
 class BugReportsWindow(QDialog):
     def __init__(self):
         super().__init__()
@@ -104,6 +110,7 @@ class BugReportsWindow(QDialog):
         widget.setLayout(self.logs_layout)
         self.scrollArea.setWidget(widget)
 
+    # Открытие окна логов
     def open_log(self):
         log = self.sender().text()
         try:
