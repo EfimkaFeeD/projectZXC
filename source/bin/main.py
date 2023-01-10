@@ -31,6 +31,8 @@ resolutions = [(1600, 900), (1920, 1080), (2560, 1440), (3840, 2160)]
 fps = 60
 pygame.init()
 date = datetime.now()
+if not os.path.isdir('system//logs'):
+    os.mkdir('system//logs')
 log_name = f"system//logs//{date.day}_{date.month}_{date.year}-{date.hour}_{date.minute}_{date.second}.log"
 logging.basicConfig(level=logging.INFO, filename=log_name, filemode="w", format="%(asctime)s %(levelname)s %(message)s")
 screen_width = pygame.display.Info().current_w
@@ -1256,6 +1258,11 @@ class LevelEditor:
                         logging.warning(e, exc_info=True)
                         continue
         if name == 'set bg':
+            screen.blit(self.default_bg, (0, 0))
+            font = pygame.font.Font('materials\\Press Start 2P.ttf', int(75 * (screen_width / 1920)))
+            text = font.render('select image', True, (124, 62, 249))
+            screen.blit(text, text.get_rect(center=(screen_width // 2, screen_height - 200 * (screen_height / 1080))))
+            pygame.display.update()
             new_name = filedialog.askopenfilename(filetypes=(("jpg image", "*.jpg"),), title='select new background')
             if new_name:
                 self.level_background = pygame.transform.smoothscale(pygame.image.load(new_name),

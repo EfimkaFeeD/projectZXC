@@ -99,6 +99,8 @@ class BugReportsWindow(QDialog):
         font = QFont()
         font.setPointSize(12)
         self.label.setFont(font)
+        if not os.path.isdir('bin//system//logs'):
+            os.mkdir('bin//system//logs')
         logs = [arg[2] for arg in os.walk('bin//system//logs')][0]
         self.logs_layout = QVBoxLayout()
         for i, log in enumerate(logs[::-1]):

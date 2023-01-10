@@ -9,8 +9,6 @@
 *.msi
 *.zip
 *.tgz
-*.log
-*.log.*
 *.sig
 
 pkg/
