@@ -1,0 +1,5 @@
+psutil==5.9.4
+PyQt5==5.15.7
+pygame==2.1.2
+pygame-widgets==1.1.0
+screeninfo==0.8.1
