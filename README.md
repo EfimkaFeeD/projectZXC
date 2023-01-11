@@ -1,4 +1,5 @@
-![Логотип](https://media.discordapp.net/attachments/1048307606059487304/1061740974595907756/zxc_icon_v2.png)
+![Логотип светлый](https://media.discordapp.net/attachments/1048307606059487304/1061740974595907756/zxc_icon_v2.png)
+![Логотип темный](https://media.discordapp.net/attachments/1048307606059487304/1062718290805391391/logo_black.png)
 
 ## Концепт
 Прототипом нашего проекта послужила игра "osu!".
