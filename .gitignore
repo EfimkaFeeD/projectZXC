@@ -10,10 +10,11 @@
 *.zip
 *.tgz
 *.sig
+*.log
+*.log.*
 
 pkg/
 src/
-log/
 
 ### Linux ###
 *~
