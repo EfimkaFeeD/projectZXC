@@ -2366,7 +2366,7 @@ class InstructionsWindow:
         self.buttons = self.generate_buttons()
         with open('system//instructions.txt', encoding='utf-8') as file:
             self.pages = file.read().split('***')
-        self.line = 0
+        self.line = 1
         self.step = 12
         self.image = pygame.transform.smoothscale(pygame.image.load('materials//menu_bg.jpg'),
                                                   (screen_width, screen_height))
@@ -2409,7 +2409,7 @@ class InstructionsWindow:
                     if self.line < len(self.current_page) - 1:
                         self.line += 1
                 elif event.button == 4:
-                    if self.line > 0:
+                    if self.line > 1:
                         self.line -= 1
 
     # Функции кнопок
@@ -2422,7 +2422,7 @@ class InstructionsWindow:
                 self.page_num -= 1
         if arg == 'exit':
             self.running = False
-        self.line = 0
+        self.line = 1
         self.current_page = self.generate_page()
 
     # Вывод инутсрукции на экран
@@ -2430,8 +2430,12 @@ class InstructionsWindow:
         pygame.draw.rect(screen, 'black', (0, 0, screen_width, screen_height))
         screen.blit(self.image, (0, 0))
         render = self.big_font.render(f'page {self.page_num + 1}', True, (160, 160, 160))
-        screen.blit(render, render.get_rect(center=(1000 * (screen_width / 1920), 900 * (screen_height / 1080))))
-        y = 200 * (screen_height / 1080)
+        screen.blit(render, render.get_rect(center=(screen_width // 2, 900 * (screen_height / 1080))))
+        render = self.big_font.render(f'scroll↓', True, (160, 160, 160))
+        screen.blit(render, render.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080))))
+        render = self.big_font.render(self.current_page[0], True, (160, 160, 160))
+        screen.blit(render, render.get_rect(center=(screen_width // 2, 200 * (screen_height / 1080))))
+        y = 250 * (screen_height / 1080)
         for line in range(self.line, min([self.line + self.step, len(self.current_page)])):
             render = self.big_font.render(self.current_page[line][:-1], True, (160, 160, 160))
             screen.blit(render, render.get_rect(center=(screen_width // 2, y)))
@@ -2441,7 +2445,7 @@ class InstructionsWindow:
     def generate_page(self):
         words = self.pages[self.page_num].split()
         title = words[0]
-        page = [title + ' ']
+        page = [title]
         words = words[1:]
         word_index = 0
         while word_index != len(words):
