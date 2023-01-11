@@ -14,6 +14,8 @@ class MyWidget(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
+        self.game_name = open('bin//system//__name__.txt').read()
+        self.update_state()
         self.setWindowTitle('launcher')
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.setFixedSize(640, 480)
@@ -28,7 +30,6 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.bug_button.clicked.connect(self.open_logs)
         self.help_button.clicked.connect(self.open_help)
         self.game_running = False
-        self.game_name = open('bin//system//__name__.txt').read()
         self.repo = 'https://github.com/EfimkaFeeD/pygameProject'
         self.timer = QTimer()
         self.timer.setInterval(1000)
