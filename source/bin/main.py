@@ -585,7 +585,7 @@ class Menu:
 
     # Создания настроек для открытого уровня
     def set_run_config(self, index):
-        self.level_name = self.song_list[index]
+        self.level_name = self.song_list[index + self.buttons_scroll]
         diff = self.difficulty_dropdown_menu.getSelected()
         if diff:
             self.difficult = diff
