@@ -276,6 +276,7 @@ class Menu:
     # Создание списка кнопок треков
     def generate_song_button_array(self, text=None):
         texts = self.song_list if not text else text
+        texts = texts[:9]
         width = 500 * (screen_width / 1920)
         height = (60 * (screen_height / 1080) + 30 * (screen_height / 1080)) * len(texts)
         song_button_array = NewButtonArray(
@@ -410,6 +411,9 @@ class Menu:
         font = pygame.font.Font('materials\\Press Start 2P.ttf', int(50 * (screen_width / 1920)))
         songs_text = font.render('Your songs:', True, (124, 62, 249))
         songs_text_rect = songs_text.get_rect(center=(screen_width // 2, 50 * (screen_height / 1080)))
+        font = pygame.font.Font('materials\\Press Start 2P.ttf', int(20 * (screen_width / 1920)))
+        render = font.render(f'scroll↓', True, (160, 160, 160))
+        screen.blit(render, render.get_rect(center=(screen_width // 2, 110 * (screen_height / 1080))))
         screen.blit(songs_text, songs_text_rect)
 
     # Обновление всех виджетов
