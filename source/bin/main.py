@@ -1386,6 +1386,7 @@ class LiveMapWindow:
             clock.tick(60)
         WidgetHandler.removeWidget(self.bar)
         pygame.mixer.music.stop()
+        pygame.mixer.music.unload()
 
     # Создание объектов по клику на экран
     def spawn_objects(self, events):
@@ -1549,6 +1550,7 @@ class TestMenu:
             clock.tick(fps)
         WidgetHandler.removeWidget(self.bar)
         pygame.mixer.music.stop()
+        pygame.mixer.music.unload()
 
 
 # Класс для управления аккаунтом
