@@ -153,6 +153,19 @@ def intro():
         pygame.display.update()
         clock.tick(fps)
     sleep(0.4)
+    
+    
+def countdown(bg, count=3):
+    font = pygame.font.Font('materials\\Press Start 2P.ttf', int(70 * (screen_width / 1920)))
+    rate = fps // 3
+    for i in range(count * rate, 0, -1):
+        screen.blit(bg, (0, 0))
+        render = font.render(str(int(i / rate)), True, (255, 255, 255))
+        screen.blit(render, render.get_rect(center=(screen_width // 2, screen_height // 2)))
+        pygame.event.get()
+        cursor.update()
+        pygame.display.update()
+        clock.tick(fps)
 
 
 # Класс главного меню
@@ -642,8 +655,8 @@ class Menu:
 class Game:
     def __init__(self, level_name, difficult, volume):
         self.running = True
-        self.level_music = pygame.mixer.Sound('songs\\' + level_name + '\\' + 'song.mp3')
-        self.level_music.set_volume(volume / 100)
+        pygame.mixer.music.load('songs\\' + level_name + '\\' + 'song.mp3')
+        pygame.mixer.music.set_volume(volume / 100)
         self.level_background = pygame.transform.smoothscale(
             pygame.image.load('songs\\' + level_name + '\\' + 'bg.jpg'), (screen_width, screen_height))
         with open('songs\\' + level_name + '\\' + 'level.json') as f:
@@ -652,15 +665,14 @@ class Game:
         self.circle_key_step = -1
         self.objects = self.create_object_list()
         if not self.objects:
-            self.level_music.play()
+            pygame.mixer.music.play()
             EmptyLevelWindow()
-            self.level_music.stop()
+            pygame.mixer.music.stop()
             self.running = False
             return
         self.possible_objects = len(self.objects)
         self.start_animation()
         self.total_objects = 0
-        self.start_time = None
         self.successful_hits = 0
         self.bar_speed = self.level_data['common']['bar_speed'] * (60 / fps)
         self.score_delta_up = self.level_data['common']['delta_up']
@@ -712,7 +724,7 @@ class Game:
             objects.append(TargetCircle(start_time=data['time'], x=data["x"], y=data["y"], speed=speed,
                                         radius=radius, key=self.generate_key(), color=color, suc=suc_img,
                                         fail=fail_img, outline=outline_image, font=font,
-                                        volume=self.level_music.get_volume()))
+                                        volume=pygame.mixer.music.get_volume()))
         return objects
 
     # Расположение на уровне
@@ -720,7 +732,7 @@ class Game:
         marking = False
         clicked = False
         for obj in self.objects:
-            if obj.start_time > (time() - self.start_time):
+            if obj.start_time > (pygame.mixer.music.get_pos() / 1000):
                 return
             data = obj.frame_update(events, clicked)
             if obj.clicked and obj.death == 1:
@@ -751,18 +763,13 @@ class Game:
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE or not pygame.mouse.get_focused():
                 WidgetHandler.removeWidget(self.score_bar)
-                pygame.mixer.pause()
-                wait_time = time()
-                for obj in self.objects:
-                    obj.pause()
+                pygame.mixer.music.pause()
                 pause_menu = PauseMenu(self.level_background, 'continue', 'back')
                 if pause_menu.state == 'back':
                     self.running = False
                 else:
-                    pygame.mixer.unpause()
-                    for obj in self.objects:
-                        obj.unpause()
-                    self.start_time += time() - wait_time
+                    countdown(self.level_background, 3)
+                    pygame.mixer.music.unpause()
                     self.score_bar = self.generate_scorebar()
 
     # Проверка на завершение игры
@@ -770,7 +777,7 @@ class Game:
         if self.bar_percent < 0:
             WidgetHandler.removeWidget(self.score_bar)
             GameResultMenu('loose', self.successful_hits, self.total_objects, self.difficult, self.possible_objects)
-        elif len(self.objects) == 0:
+        elif len(self.objects) == 0 or pygame.mixer.music.get_pos() == -1:
             WidgetHandler.removeWidget(self.score_bar)
             GameResultMenu('win', self.successful_hits, self.total_objects, self.difficult)
         else:
@@ -781,14 +788,14 @@ class Game:
     def run(self):
         if not self.running:
             return
-        self.level_music.play()
-        self.start_time = time()
+        pygame.mixer.music.play()
         while self.running:
             self.generate_frame(pygame.event.get())
             cursor.update()
             pygame.display.update()
             clock.tick(fps)
-        self.level_music.stop()
+        pygame.mixer.music.stop()
+        pygame.mixer.music.unload()
         close_animation()
 
     # Успешное попадание
@@ -839,10 +846,9 @@ class TargetCircle:
         self.x = int(x * (screen_width / 1920))
         self.y = int(y * (screen_height / 1080))
         self.max_radius = int(radius * (screen_width / 1920))
-        self.speed = self.max_radius / (fps * speed)
+        self.speed = speed
         self.key = key
         self.start_time = start_time
-        self.lifetime = None
         self.text_key = pygame.key.name(key)
         self.start_successful_time = speed * 0.8
         self.end_successful_time = speed * 1.2
@@ -865,20 +871,24 @@ class TargetCircle:
 
     # Движение кружка
     def move(self):
-        if self.radius == 0:
-            self.lifetime = time()
+        abs_time_now = pygame.mixer.music.get_pos() / 1000 - self.start_time
         if self.radius >= self.max_radius and self.cheats:
             self.hit_time = -1
-        if (time() - self.lifetime) > self.end_successful_time and not self.hit_time:
+        if abs_time_now > self.end_successful_time and not self.hit_time:
             self.hit_time = -1
         if self.death:
             self.death += 1
             return
-        self.radius += self.speed
+        if abs_time_now >= self.speed:
+            self.radius = self.max_radius + 0.1
+        else:
+            self.radius = self.max_radius * (abs_time_now / self.speed)
         if self.radius > self.max_radius:
             self.death = 1
             if self.cheats:
                 self.hit_sound.play()
+            else:
+                self.death = 1
 
     def mark(self):
         self.color = self.marked_color
@@ -899,13 +909,16 @@ class TargetCircle:
             else:
                 screen.blit(self.fail_img, self.fail_img.get_rect(center=(self.x, self.y)))
             return
+        if self.cheats and self.radius > self.max_radius:
+            return
         screen.blit(self.outline_image, self.outline_image.get_rect(center=(self.x, self.y)))
         pygame.draw.circle(screen, color=self.color, center=(self.x, self.y), radius=self.radius)
         screen.blit(self.text, self.text.get_rect(center=(self.x, self.y)))
 
     # Обработка попадания
     def collision(self, events):
-        if time() - self.lifetime > self.end_successful_time or self.cheats:
+        abs_time_now = pygame.mixer.music.get_pos() / 1000 - self.start_time
+        if abs_time_now > self.end_successful_time or self.cheats:
             return
         uncorrected_keys = [pygame.K_x, pygame.K_c, pygame.K_z]
         uncorrected_keys.remove(self.key)
@@ -916,18 +929,9 @@ class TargetCircle:
                         return
                 if self.hitbox.colliderect(cursor.hitbox):
                     self.hit_sound.play()
-                    self.hit_time = time() - self.lifetime
+                    self.hit_time = abs_time_now
                     self.death = 1
                     self.clicked = True
-
-    # При переходе в меню паузы
-    def pause(self):
-        self.wait_time = time()
-
-    # При выходе из меню паузы
-    def unpause(self):
-        if self.lifetime:
-            self.lifetime += time() - self.wait_time
 
     # Возврат состояния
     def get_data(self):
@@ -1167,9 +1171,9 @@ class LevelEditor:
             WidgetHandler.removeWidget(self.color_dropdown)
             WidgetHandler.removeWidget(self.confirm_color_button)
             if self.objects:
-                window = PauseMenu(self.level_background, 'start over', 'continue editing', 'back')
+                window = PauseMenu(self.level_background, 'start over', 'continue editing', 'back', escape=2)
             else:
-                window = PauseMenu(self.level_background, 'start over', 'back')
+                window = PauseMenu(self.level_background, 'start over', 'back', escape=1)
             if window.state == 'start over':
                 self.live_mapping()
             elif window.state == 'continue editing':
@@ -1353,20 +1357,19 @@ class LiveMapWindow:
         pygame.mixer.music.load(music)
         self.bg = bg
         self.common_data = common
-        self.bar_speed = 1 / ((self.music.get_length() + 3) * 60)
         self.time_upscaling = 0
         if not restarting:
+            countdown(bg, 3)
             self.old_objects = objects
             self.time_upscaling = objects[-1]['time'] + common['speed']
-            self.bar_percent = self.time_upscaling / self.music.get_length()
+            self.bar_percent = (pygame.mixer.music.get_pos() / 1000) / self.music.get_length()
         else:
             self.old_objects = []
-            self.bar_percent = -self.bar_speed
+            self.bar_percent = 0
         self.objects = []
         self.running = True
         self.saving = True
         self.bar = self.generate_progress_bar()
-        self.start_time = time()
         pygame.mixer.music.set_volume(volume_level)
         pygame.mixer.music.play(start=self.time_upscaling)
         self.run()
@@ -1393,7 +1396,8 @@ class LiveMapWindow:
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 pos = pygame.mouse.get_pos()
-                self.objects.append(MappingCircle(pos[0], pos[1], time() - self.start_time + self.time_upscaling))
+                self.objects.append(MappingCircle(pos[0], pos[1], pygame.mixer.music.get_pos() / 1000
+                                                  + self.time_upscaling))
 
     # Проверка на выход в меню
     def check_exit_event(self, events):
@@ -1401,15 +1405,14 @@ class LiveMapWindow:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE or not pygame.mouse.get_focused():
                 WidgetHandler.removeWidget(self.bar)
                 pygame.mixer.music.pause()
-                wait_time = time()
                 pause_menu = PauseMenu(self.bg, 'continue', 'save and exit', 'exit without saving')
                 if pause_menu.state == 'save and exit':
                     self.running = False
-                if pause_menu.state == 'exit without saving':
+                elif pause_menu.state == 'exit without saving':
                     self.saving = False
                     self.running = False
                 else:
-                    self.start_time += time() - wait_time
+                    countdown(self.bg, 3)
                     pygame.mixer.music.unpause()
                 self.bar = self.generate_progress_bar()
 
@@ -1431,7 +1434,7 @@ class LiveMapWindow:
 
     # Обновление значения progressbar
     def update_bar_percent(self):
-        self.bar_percent += self.bar_speed
+        self.bar_percent = ((pygame.mixer.music.get_pos() / 1000) + self.time_upscaling) / self.music.get_length()
         if self.bar_percent >= 1:
             self.running = False
         return self.bar_percent
@@ -1464,11 +1467,10 @@ class TestMenu:
         self.music.set_volume(volume_level)
         if not objects:
             return
-        self.bar_speed = 1 / ((objects[-1]['time'] + common['speed'] + 3) * fps)
-        self.bar_percent = -self.bar_speed
+        self.end_pos = objects[-1]['time'] + common['speed'] + 1
+        self.bar_percent = 0
         self.bar = self.generate_bar()
         self.targets = self.unpack(objects)
-        self.start_time = None
         self.running = True
         self.run()
 
@@ -1500,7 +1502,7 @@ class TestMenu:
 
     # Обновление значения progressbar
     def update_bar_percent(self):
-        self.bar_percent += self.bar_speed
+        self.bar_percent = (pygame.mixer.music.get_pos() / 1000) / self.end_pos
         if self.bar_percent >= 1:
             self.running = False
         return self.bar_percent
@@ -1510,11 +1512,9 @@ class TestMenu:
         if self.targets:
             self.targets[0].mark()
         for obj in self.targets:
-            if obj.start_time > (time() - self.start_time):
+            if obj.start_time > pygame.mixer.music.get_pos() / 1000:
                 return
             obj.frame_update(events)
-            if obj.hit_time:
-                del self.targets[self.targets.index(obj)]
 
     # Проверка на выход в редактор уровня
     def check_exit_event(self, events):
@@ -1522,23 +1522,16 @@ class TestMenu:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE or not pygame.mouse.get_focused():
                 pygame.mixer.music.pause()
                 WidgetHandler.removeWidget(self.bar)
-                wait_time = time()
-                for obj in self.targets:
-                    obj.pause()
                 window = PauseMenu(self.bg, 'exit', 'continue')
                 if window.state == 'exit':
                     self.running = False
                 else:
-                    self.start_time += time() - wait_time
-                    for obj in self.targets:
-                        obj.unpause()
                     pygame.mixer.music.unpause()
                 self.bar = self.generate_bar()
 
     # Цикл для вывода на экран
     def run(self):
         pygame.mixer.music.play()
-        self.start_time = time()
         while self.running:
             screen.blit(self.bg, (0, 0))
             events = pygame.event.get()
@@ -2054,6 +2047,7 @@ class PauseMenu:
         self.text = args
         self.music = kwargs.get('music', [None for _ in args])
         self.title = kwargs.get('title', None)
+        self.escape = kwargs.get('escape', 0)
         self.buttons = self.generate_buttons()
         self.running = True
         self.run()
@@ -2109,7 +2103,7 @@ class PauseMenu:
             pygame_widgets.update(events)
             for e in events:
                 if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
-                    self.state = self.text[0]
+                    self.state = self.text[self.escape]
                     self.running = False
             cursor.update()
             pygame.display.update()
