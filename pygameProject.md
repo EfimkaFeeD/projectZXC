@@ -8,6 +8,10 @@ class: invert
 
 ![](https://media.discordapp.net/attachments/1048307606059487304/1061740974595907756/zxc_icon_v2.png)
 
+by Efim Ebert and George Altynov
+(Ефим Эберт и Георгий Алтынов)
+17.12.23
+
 ---
 
 # Концепт
@@ -71,7 +75,7 @@ class: invert
 Главная программа
 
 ```python
-2517 | if __name__ == '__main__':
+2521 | if __name__ == '__main__':
 ```
 
 ![bg right height:300px](https://media.discordapp.net/attachments/1048307606059487304/1062716122111168554/b761bff0f1fabbe2.png)
@@ -175,6 +179,18 @@ get_monitors()
 
 ---
 
+# Процесс разработки таймингов
+
+![height:500px](https://media.discordapp.net/attachments/1048307606059487304/1064179013498712125/Picsart_23-01-15_16-47-17-684.jpg)
+
+---
+
+![bg height:450px](https://media.discordapp.net/attachments/1048307606059487304/1064578869681737779/image.png)
+
+![bg height:450px](https://media.discordapp.net/attachments/1048307606059487304/1064578945481183262/image.png)
+
+---
+
 # Редактор уровней
 
 ![height:500px](https://media.discordapp.net/attachments/1048307606059487304/1062755495867318382/image.png)
@@ -216,6 +232,12 @@ get_monitors()
 
 ---
 
+# GitHub
+
+![height:520px](https://media.discordapp.net/attachments/1048307606059487304/1062736843612897290/1673446602694.jpg)
+
+---
+
 # Топ коммитов
 
 [:one:](https://github.com/EfimkaFeeD/pygameProject/commit/ad16b7a520c122bac55025b6587e2a61829f5b86) some fix (трилогия)
@@ -226,15 +248,9 @@ get_monitors()
 
 ---
 
-# GitHub
-
-![height:520px](https://media.discordapp.net/attachments/1048307606059487304/1062736843612897290/1673446602694.jpg)
-
----
-
 # README.md
 
-Basic GigaChad move [:moyai:](https://github.com/EfimkaFeeD/pygameProject/blob/main/README.md)
+Based GigaChad move [:moyai:](https://github.com/EfimkaFeeD/pygameProject/blob/main/README.md)
 
 ![height:480px](https://media.discordapp.net/attachments/1048307606059487304/1062775585144832130/Picsart_23-01-11_19-50-35-971.png)
 
@@ -242,13 +258,27 @@ Basic GigaChad move [:moyai:](https://github.com/EfimkaFeeD/pygameProject/blob/m
 
 # GitHub Project
 
-![height:580px](https://media.discordapp.net/attachments/1048307606059487304/1062740558495358976/7fda85e62bdc9fb2.png)
+[![height:580px](https://media.discordapp.net/attachments/1048307606059487304/1062740558495358976/7fda85e62bdc9fb2.png)](https://github.com/users/EfimkaFeeD/projects/2)
 
 ---
 
 # GitHub Releases
 
-[![height:440px](https://media.discordapp.net/attachments/1048307606059487304/1062775084214911147/9c1527d4cabde466.png)](https://github.com/EfimkaFeeD/pygameProject/releases/tag/v1.0.0)
+[![height:440px](https://media.discordapp.net/attachments/1048307606059487304/1064592198848479252/image.png)](https://github.com/EfimkaFeeD/pygameProject/releases/tag/v1.0.0)
+
+---
+
+# Вывод
+
+* Мы выжили
+* Все работает
+* Все работает вовремя
+* Все работает правильно
+* Все работает классно
+* Все работает красиво
+* Лучший выход из этой ситуации - ㅤㅤㅤㅤ~~в окно~~
+
+![bg right height:550px](https://media.discordapp.net/attachments/1048307606059487304/1064580581238779934/image.png)
 
 ---
 
