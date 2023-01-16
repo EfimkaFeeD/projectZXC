@@ -154,7 +154,8 @@ def intro():
         clock.tick(fps)
     sleep(0.4)
     
-    
+
+# Обратный отсчет после пауз
 def countdown(bg, count=3):
     font = pygame.font.Font('materials\\Press Start 2P.ttf', int(70 * (screen_width / 1920)))
     rate = fps // 3
@@ -478,6 +479,7 @@ class Menu:
                     self.stats_button = self.generate_stats_button()
                     self.instructions_button = self.generate_instructions_button()
 
+    # Отсчет времени зажатия кнопки для последующего перехода в редактор
     def start_waiting(self):
         self.wait_time = 1 / fps
 
@@ -1515,6 +1517,8 @@ class TestMenu:
             if obj.start_time > pygame.mixer.music.get_pos() / 1000:
                 return
             obj.frame_update(events)
+            if obj.hit_time:
+                del self.targets[self.targets.index(obj)]
 
     # Проверка на выход в редактор уровня
     def check_exit_event(self, events):
