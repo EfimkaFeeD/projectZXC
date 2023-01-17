@@ -86,6 +86,12 @@ by Efim Ebert and George Altynov
 
 ---
 
+# Кратко о комментариях
+
+![height:600px](https://media.discordapp.net/attachments/1048307606059487304/1064888770912067584/1zdmlg7cf8l71.png)
+
+---
+
 # Формула больше-меньше
 
 ```python
@@ -242,7 +248,7 @@ get_monitors()
 
 [:one:](https://github.com/EfimkaFeeD/pygameProject/commit/ad16b7a520c122bac55025b6587e2a61829f5b86) some fix (трилогия)
 [:two:](https://github.com/EfimkaFeeD/pygameProject/commit/a51c49fa58a70320878e8ab07a53343f12eb711b) refactor json logic (сколько раз? да [:moyai:](https://media.tenor.com/kHcmsxlKHEAAAAAC/rock-one-eyebrow-raised-rock-staring.gif))
-[:three:](https://github.com/EfimkaFeeD/pygameProject/commit/3d0ce8f01c6b6b9bb67b2e237d7f6579cd239665) very minor fixes
+[:three:](https://github.com/EfimkaFeeD/pygameProject/commit/fac5d3e913a651f149bbc225894d93f3054825c1) we are done here 🥳🥳🥳 (13 commit'ов после этого)
 [:four:](https://github.com/EfimkaFeeD/pygameProject/commit/f10bb522cad3266fe689bc5e772086ced71abcc9) refactor file system attempt 2 (удалил почти весь проект при первой попытке) 
 [:five:](https://github.com/EfimkaFeeD/pygameProject/commit/dae2ed40e0da2d427e07ff9795cb09143ddd344f) remember some files 
 
