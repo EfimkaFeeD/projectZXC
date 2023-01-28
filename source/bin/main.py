@@ -920,7 +920,7 @@ class TargetCircle:
     # Обработка попадания
     def collision(self, events):
         abs_time_now = pygame.mixer.music.get_pos() / 1000 - self.start_time
-        if abs_time_now > self.end_successful_time or self.cheats:
+        if self.death:
             return
         uncorrected_keys = [pygame.K_x, pygame.K_c, pygame.K_z]
         uncorrected_keys.remove(self.key)
