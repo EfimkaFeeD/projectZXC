@@ -9,23 +9,25 @@ class: invert
 ![](https://media.discordapp.net/attachments/1048307606059487304/1061740974595907756/zxc_icon_v2.png)
 
 Ефим Эберт и Георгий Алтынов
+Лицей «Дубна»
 
 ---
 
-# Цели
+# Цель
 
-* Создать программу похожую на игру "osu!"
+#### Создать программу похожую на игру "osu!"
+
+![width:720px](https://media.discordapp.net/attachments/1048307606059487304/1066061959352561714/image.png)
+
+---
+
+# Задачи
+
 * Довести проект до рабочего состояния
 * Поработать в команде
 * Научиться работать с движком для создания игр
 * Научится работать с Git и GitHub
 * Самое главное: получить положительные эмоции и опыт
-
----
-
-# osu!
-
-![width:1080px](https://media.discordapp.net/attachments/1048307606059487304/1066061959352561714/image.png)
 
 ---
 
@@ -54,10 +56,6 @@ class: invert
 ---
 
 # Меню
-
-![width:960px](https://media.discordapp.net/attachments/1048307606059487304/1061742543546630194/image_1.png)
-
----
 
 ![width:1080px](https://media.discordapp.net/attachments/1048307606059487304/1061742912565682196/image_2.png)
 
